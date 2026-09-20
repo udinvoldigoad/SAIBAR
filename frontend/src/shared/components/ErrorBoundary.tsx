@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
             boxShadow: "0 10px 40px rgba(0,0,0,0.08)",
           }}
         >
-          <div style={{ fontSize: 48, lineHeight: 1, marginBottom: 16 }}>âš ï¸</div>
+          <div style={{ fontSize: 48, lineHeight: 1, marginBottom: 16 }}>⚠️</div>
           <h1 style={{ fontSize: "1.4rem", fontWeight: 800, margin: "0 0 10px" }}>
             Terjadi kesalahan tak terduga
           </h1>

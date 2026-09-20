@@ -892,7 +892,7 @@ export function CitizenModePage() {
   ];
 
   const shareText = [
-    "âš ï¸ Peringatan Banjir Rob — SAIBAR",
+    "⚠️ Peringatan Banjir Rob — SAIBAR",
     `Lokasi: ${currentLocation}`,
     `Status: ${risk}`,
     ...(data ? [

@@ -1,0 +1,1 @@
+import{g as e}from"./index-3SriM4Pb.js";var t=e();function n({width:e=`100%`,height:n=`20px`,borderRadius:r=`var(--radius)`,style:i,className:a=``}){return(0,t.jsx)(`div`,{className:`skeleton ${a}`,style:{width:e,height:n,borderRadius:r,...i}})}export{n as t};
