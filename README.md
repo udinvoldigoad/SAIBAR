@@ -10,6 +10,10 @@
 
 SAIBAR adalah **Sistem Informasi Geografis (SIG)** berbasis WebGIS terpadu yang memanfaatkan kecerdasan buatan (*Machine Learning*) untuk memproyeksikan, memantau, dan memitigasi bencana banjir rob (genangan pasang air laut) secara *real-time* di wilayah pesisir Provinsi Lampung.
 
+<p align="center">
+  <img src="docs/assets/saibar_hero.png" alt="Tampilan Portal SAIBAR" width="800">
+</p>
+
 ---
 
 ## 🛠️ Stack Teknologi (Tech Stack)
