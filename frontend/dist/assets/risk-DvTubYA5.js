@@ -1,0 +1,1 @@
+var e=e=>e,t=e({sangat_tinggi:`#e52421`,tinggi:`#f4510b`,sedang:`#d97706`,rendah:`#16a34a`}),n=e({sangat_tinggi:`Sangat Tinggi`,tinggi:`Tinggi`,sedang:`Sedang`,rendah:`Rendah`});export{n,t};
