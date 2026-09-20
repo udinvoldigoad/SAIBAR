@@ -144,3 +144,22 @@ Seluruh modul dan dokumentasi resmi tugas akhir dikompilasi secara rapi di dalam
    npm run dev
    ```
 2. Buka browser pada alamat `http://localhost:5173`.
+
+---
+
+## 6. Cara Penggunaan Aplikasi (Panduan Singkat)
+
+### 👤 Warga Masyarakat (Publik)
+Akses website SAIBAR (contoh: `https://saibar.id`) melalui browser HP atau laptop.
+1. **Melihat Risiko**: Izinkan akses lokasi (GPS) pada browser Anda. Sistem (Citizen Mode) otomatis akan mendeteksi lokasi Anda dan menampilkan status risiko banjir rob secara *real-time* dengan teks yang mudah dipahami (Risiko Aman / Waspada / Bahaya).
+2. **Lapor Banjir**: Jika terjadi rob di lokasi Anda, klik tombol **"Lapor Banjir Rob"**. Unggah foto kejadian, berikan deskripsi singkat, lalu kirim. Laporan akan divalidasi oleh petugas BPBD.
+
+### 👮 Operator BPBD
+1. Kunjungi rute otentikasi `/login` dan masuk menggunakan kredensial (Google Auth/Email).
+2. **Validasi Laporan**: Buka menu **Dashboard Laporan Warga**. Anda dapat menyetujui (Approve) atau menolak (Reject) laporan masuk berdasarkan validitas foto. Laporan yang valid akan muncul di peta publik.
+3. **Penyebaran Peringatan**: Gunakan menu **Early Warning System (EWS)** untuk mengirim pesan *broadcast* (Peringatan Bahaya) melalui Email dan Push Notification ke seluruh perangkat warga yang berlangganan di kawasan rawan.
+
+### 🧑‍🔬 Peneliti & Akademisi
+1. Buka tab **Portal Riset** di navigasi utama web SAIBAR.
+2. Buat akun, lalu buka halaman **API Settings**. Klik tombol **Generate API Key**.
+3. Gunakan token API tersebut (berikan di HTTP Header `Authorization: Bearer <TOKEN>`) untuk menarik data mentah JSON dari *endpoint* resmi penelitian kami (contoh: `/api/v1/research/predictions`). Anda dapat menggunakan data ini untuk skripsi atau analisis lanjutan.
