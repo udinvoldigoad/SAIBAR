@@ -23,13 +23,13 @@ function notifMeta(title: string): { icon: string; color: string } {
   return { icon: "notifications", color: "var(--accent)" };
 }
 
-// Tanggal + jam ringkas, mis. "25 Jul 2026 Â· 14.30".
+// Tanggal + jam ringkas, mis. "25 Jul 2026 · 14.30".
 function formatNotifWhen(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const date = d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
   const time = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-  return `${date} Â· ${time}`;
+  return `${date} · ${time}`;
 }
 
 export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
@@ -231,7 +231,7 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
               <Icon name="menu" />
             </button>
             {/* Halaman yang mengirim `breadcrumbs` menampilkan jejak aslinya;
-                sisanya tetap memakai jejak bawaan "beranda â€º judul". */}
+                sisanya tetap memakai jejak bawaan "beranda ”º judul". */}
             {breadcrumbs && breadcrumbs.length > 0 ? (
               <Breadcrumbs items={breadcrumbs} />
             ) : (

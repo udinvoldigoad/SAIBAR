@@ -2,7 +2,7 @@
  * Fallback layar-penuh untuk Suspense (lazy route) & sebagai indikator memuat
  * halaman yang konsisten. Ringan, tanpa dependensi berat, sadar tema.
  */
-export function PageFallback({ label = "Memuat halamanâ€¦" }: { label?: string }) {
+export function PageFallback({ label = "Memuat halaman…" }: { label?: string }) {
   return (
     <div
       role="status"

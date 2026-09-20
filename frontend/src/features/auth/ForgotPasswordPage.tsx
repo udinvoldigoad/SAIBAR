@@ -39,7 +39,7 @@ export function ForgotPasswordPage() {
       setStep("otp");
       setCooldown(60);
       // Backend sengaja tidak membocorkan apakah email terdaftar
-      // (anti-enumeration) â€” jangan mengklaim OTP pasti terkirim.
+      // (anti-enumeration) — jangan mengklaim OTP pasti terkirim.
       toast.success("Jika email terdaftar, kode OTP telah dikirim. Berlaku 10 menit.");
     } catch (err: unknown) {
       toast.error(errorMessage(err, "Gagal mengirim kode OTP."));

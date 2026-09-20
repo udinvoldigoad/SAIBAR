@@ -33,7 +33,7 @@ export function LoginPage() {
     if (hash.includes("error=menunggu")) {
       // Pendaftaran mandiri (email maupun Google) kini langsung aktif, jadi
       // status "menunggu" hanya muncul untuk akun yang SENGAJA dibuat admin
-      // dalam keadaan menunggu â€” pesannya tak boleh lagi menyebut pendaftaran.
+      // dalam keadaan menunggu — pesannya tak boleh lagi menyebut pendaftaran.
       setLoginNotice({ message: "Akun Anda masih menunggu persetujuan admin.", status: "menunggu" });
     } else if (hash.includes("error=nonaktif")) {
       setLoginNotice({ message: "Akun Anda telah dinonaktifkan.", status: "nonaktif" });
@@ -91,7 +91,7 @@ export function LoginPage() {
       }, 500);
 
     } catch (err: unknown) {
-      // Akun belum aktif (menunggu/nonaktif/ditolak) â†’ tampilkan panel status
+      // Akun belum aktif (menunggu/nonaktif/ditolak) → tampilkan panel status
       // yang jelas & persisten, bukan sekadar toast sesaat.
       // Belum verifikasi email punya jalan keluar sendiri (masukkan OTP),
       // jadi jangan disamakan dengan panel status "tunggu admin".
@@ -187,7 +187,7 @@ export function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email: verifyEmail }),
       });
-      // Pesan backend sengaja generik (anti-enumeration) â€” diteruskan apa adanya.
+      // Pesan backend sengaja generik (anti-enumeration) — diteruskan apa adanya.
       toast.info("Jika email tersebut belum terverifikasi, kode baru telah dikirim.");
     } catch (err: unknown) {
       toast.error(errorMessage(err, "Gagal mengirim ulang kode."));
@@ -346,7 +346,7 @@ export function LoginPage() {
                     </div>
                   </div>
                 {/* "Ingat saya" dihapus: checkbox lama tidak tersambung ke
-                    apa pun (sesi selalu tersimpan di localStorage) â€” kontrol
+                    apa pun (sesi selalu tersimpan di localStorage) — kontrol
                     mati hanya menyesatkan. */}
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "32px" }}>
                   <a href="#/forgot-password" className="link-btn" style={{ fontSize: "14px", color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>Lupa sandi?</a>
@@ -433,8 +433,8 @@ export function LoginPage() {
                   <Icon name={isPeneliti ? "gavel" : "info"} style={{ fontSize: "18px", color: "#3b82f6", flexShrink: 0, marginTop: "2px" }} />
                   <span style={{ lineHeight: "1.5" }}>
                     {isPeneliti
-                      ? "Akun peneliti membuka data mentah laporan & prediksi, jadi permohonan Anda ditinjau admin lebih dulu. Isi keterangan di bawah selengkap mungkin â€” admin memakainya untuk memastikan kepentingan Anda."
-                      : "Butuh akun BPBD? Hubungi admin â€” akun instansi dibuat & diverifikasi langsung oleh admin."}
+                      ? "Akun peneliti membuka data mentah laporan & prediksi, jadi permohonan Anda ditinjau admin lebih dulu. Isi keterangan di bawah selengkap mungkin — admin memakainya untuk memastikan kepentingan Anda."
+                      : "Butuh akun BPBD? Hubungi admin — akun instansi dibuat & diverifikasi langsung oleh admin."}
                   </span>
                 </div>
 
@@ -467,7 +467,7 @@ export function LoginPage() {
                     autoComplete="organization"
                     value={regInstitution}
                     onChange={(e) => setRegInstitution(e.target.value)}
-                    placeholder={isPeneliti ? "mis. Universitas Lampung â€” Fakultas Teknik" : ""}
+                    placeholder={isPeneliti ? "mis. Universitas Lampung — Fakultas Teknik" : ""}
                     style={inputStyle}
                     required={isPeneliti}
                   />
@@ -487,7 +487,7 @@ export function LoginPage() {
                   />
                   {isPeneliti && (
                     <p style={{ margin: "6px 0 0", fontSize: "12.5px", color: "var(--ink-soft)", lineHeight: 1.5 }}>
-                      Sebisa mungkin pakai email resmi instansi â€” alamat institusional mempercepat admin memastikan permohonan Anda.
+                      Sebisa mungkin pakai email resmi instansi — alamat institusional mempercepat admin memastikan permohonan Anda.
                     </p>
                   )}
                 </div>
