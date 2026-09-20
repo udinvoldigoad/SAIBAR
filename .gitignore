@@ -64,4 +64,4 @@ mt2_diff*.txt
 old_*.php
 runs.json
 run*.log
-
+fix_mojibake.php
