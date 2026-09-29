@@ -275,6 +275,15 @@ export function LoginPage() {
           animate={{ opacity: 1 }}
           className="auth-card-wrapper"
         >
+          <button 
+            type="button" 
+            onClick={() => window.history.length > 1 ? window.history.back() : (window.location.hash = "#/")}
+            style={{ background: "none", border: "none", color: "var(--ink-soft)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px", padding: 0, marginBottom: "24px", fontWeight: 600, fontSize: "14px" }}
+            className="back-btn-global"
+          >
+            <Icon name="arrow_back" style={{ fontSize: "18px" }} /> Kembali
+          </button>
+
           {/* Logo for mobile */}
           <div className="mobile-only mobile-only-header">
             <div className="mobile-logo-badge">
@@ -282,7 +291,6 @@ export function LoginPage() {
             </div>
             <h2 className="mobile-brand-title">SAIBAR</h2>
           </div>
-
 
           <AnimatePresence mode="wait">
             {mode === "verify" ? null : mode === "login" ? (
@@ -785,8 +793,11 @@ export function LoginPage() {
           .mobile-brand-title, .auth-card-wrapper h2, .auth-card-wrapper label {
             color: #ffffff !important;
           }
-          .auth-card-wrapper .auth-header-text p, .auth-card-wrapper .or-text {
+          .auth-card-wrapper .auth-header-text p, .auth-card-wrapper .or-text, .auth-card-wrapper .back-btn-global {
             color: rgba(255, 255, 255, 0.7) !important;
+          }
+          .auth-card-wrapper .back-btn-global:hover {
+            color: rgba(255, 255, 255, 1) !important;
           }
           .auth-card-wrapper input {
             background: rgba(255, 255, 255, 0.1) !important;

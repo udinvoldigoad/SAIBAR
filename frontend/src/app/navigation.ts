@@ -15,7 +15,7 @@ export const navItems: NavItem[] = [
   // Peran bpbd_provinsi dihapus saat penyederhanaan 5 peran -> 3, dan halaman
   // ini sempat ikut kehilangan rutenya. Pantauannya masih dibutuhkan, jadi
   // dikembalikan sebagai menu admin (endpoint-nya memang sudah role:admin).
-  { href: "#/province", icon: "monitoring", label: "Pantauan Provinsi", roles: ["admin"] },
+  { href: "#/province", icon: "monitoring", label: "Pantauan Provinsi", roles: ["guest", "warga", "peneliti", "admin"] },
   { href: "#/research", icon: "database", label: "Arsip Data", roles: ["peneliti", "admin"] },
   { href: "#/admin", icon: "manage_accounts", label: "Pengguna & Perizinan", roles: ["admin"] },
   { href: "#/audit", icon: "policy", label: "Audit", roles: ["admin"] }

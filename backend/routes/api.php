@@ -37,6 +37,9 @@ Route::prefix('public')->middleware('throttle:public')->group(function () {
     Route::get('/onboarding', [PublicMapController::class, 'onboarding']);
 });
 
+Route::get('/dashboard/province/summary', [DashboardController::class, 'provinceSummary'])->middleware('throttle:public');
+Route::get('/dashboard/province/export', [DashboardController::class, 'provinceExport'])->middleware('throttle:public-export');
+
 // Foto laporan disajikan lewat route (bukan symlink storage) agar tetap
 // tampil di `php artisan serve` maupun web server produksi.
 Route::get('/reports/photo/{photo}', [ReportController::class, 'photo'])
@@ -66,10 +69,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/dashboard/operator/summary', [DashboardController::class, 'operatorSummary'])
         ->middleware('role:admin');
     Route::get('/dashboard/operator/reports/export', [DashboardController::class, 'operatorReportsExport'])
-        ->middleware('role:admin');
-    Route::get('/dashboard/province/summary', [DashboardController::class, 'provinceSummary'])
-        ->middleware('role:admin');
-    Route::get('/dashboard/province/export', [DashboardController::class, 'provinceExport'])
         ->middleware('role:admin');
 
     Route::middleware('role:admin')->group(function () {

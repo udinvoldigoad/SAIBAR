@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../shared/components/Icon";
 import { MapPreview } from "../shared/components/MapPreview";
+import { ProvinceTrendChart } from "../shared/components/ProvinceTrendChart";
 import { motion, AnimatePresence } from "framer-motion";
 import { dashboardHashForRole } from "../shared/constants/roles";
 import { getCurrentUser, isLoggedIn } from "../shared/auth/session";
-
 const faqData = [
   {
     q: "Seberapa akurat prediksi banjir rob SAIBAR?",
@@ -717,6 +717,7 @@ export function PortalPage() {
         /* Responsive */
         @media (max-width: 1024px) {
           .bento-container-grid { display: flex; flex-direction: column; }
+          .bento-container-grid > * { width: 100% !important; }
           .hero-section { padding: 100px 24px 60px; }
           .hero-section h1 { font-size: 2.7rem; }
           .marquee-container { margin-bottom: 80px; }
@@ -961,6 +962,33 @@ export function PortalPage() {
             <div className="card-links-row">
               <a className="card-action-link" href="#/login">Masuk Dashboard <Icon name="arrow_forward" /></a>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+
+      {/* Prediksi Probabilitas Rob — grafik sama persis dengan halaman Pantauan Provinsi */}
+      <section className="bento-section" style={{ marginTop: '100px', width: '100%' }}>
+        <motion.div
+          className="bento-header-wrap"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          <h2>Pantauan Probabilitas Provinsi</h2>
+          <p>Kondisi prediksi peluang banjir rob 30 hari ke depan di wilayah Provinsi Lampung.</p>
+        </motion.div>
+        <div className="bento-container-grid">
+          <motion.div
+            className="bento-card-el"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            style={{ gridColumn: "1 / -1", width: "100%" }}
+          >
+            <ProvinceTrendChart />
           </motion.div>
         </div>
       </section>
