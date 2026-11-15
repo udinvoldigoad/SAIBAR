@@ -2,17 +2,19 @@
  * ProvinceTrendChart — grafik SVG "Prediksi Peluang Rob 30 Hari ke Depan".
  *
  * Komponen ini diekstrak dari ProvinceDashboardPage agar bisa dipakai
- * ulang di landing page tanpa duplikasi kode. Datanya ditarik melalui
- * shared cache (provinceSummaryCache) sehingga jika pengguna berpindah
- * dari landing ke halaman Pantauan Provinsi, data yang sudah di-cache
- * langsung dipakai — tidak ada request ganda.
+ * ulang di landing page tanpa duplikasi kode. Tanpa prop `summary`
+ * (landing publik) datanya ditarik dari endpoint anonim
+ * /public/province/forecast; halaman Pantauan Provinsi (admin) mengoper
+ * `summary` miliknya sendiri.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
+import { getCurrentUser } from "../auth/session";
 import {
-  fetchProvinceSummary,
-  getProvinceSummaryCached,
+  fetchPublicProvinceTrend,
+  getPublicProvinceTrendCached,
   type ProvinceSummaryData,
+  type ProvinceTrendRow,
 } from "../api/provinceSummaryCache";
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -31,26 +33,28 @@ export interface ProvinceTrendChartProps {
 }
 
 export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight }: ProvinceTrendChartProps) {
-  const [internalSummary, setInternalSummary] = useState<ProvinceSummaryData | null>(propSummary || getProvinceSummaryCached());
-  const [loading, setLoading] = useState(!propSummary && !internalSummary);
+  const [publicTrend, setPublicTrend] = useState<ProvinceTrendRow[] | null>(getPublicProvinceTrendCached());
+  const [loading, setLoading] = useState(!propSummary && !publicTrend);
   const [error, setError] = useState(false);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const summary = propSummary || internalSummary;
+  const trendRows = propSummary ? (propSummary.trend_30_days ?? []) : publicTrend;
+  // Halaman Pantauan Provinsi khusus admin — jangan tawarkan tautannya ke tamu.
+  const showLink = !hideLink && getCurrentUser()?.role === "admin";
 
   useEffect(() => {
     if (propSummary) return; // Ignore fetch if controlled via props
     let alive = true;
-    fetchProvinceSummary()
-      .then((data) => { if (alive) { setInternalSummary(data); setLoading(false); } })
+    fetchPublicProvinceTrend()
+      .then((data) => { if (alive) { setPublicTrend(data); setLoading(false); } })
       .catch(() => { if (alive) { setError(true); setLoading(false); } });
     return () => { alive = false; };
   }, [propSummary]);
 
   const trendData = useMemo(() => {
     const byDate = new Map<string, { avgProb: number; maxProb: number }>();
-    for (const row of summary?.trend_30_days ?? []) {
+    for (const row of trendRows ?? []) {
       const key = row.prediction_date.substring(0, 10);
       byDate.set(key, {
         avgProb: toNumber(row.avg_probability),
@@ -75,7 +79,7 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
         hasData: !!stat,
       };
     });
-  }, [summary?.trend_30_days]);
+  }, [trendRows]);
 
   if (loading) {
     return (
@@ -84,7 +88,7 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
       </div>
     );
   }
-  if (error || !summary) {
+  if (error || !trendRows) {
     return (
       <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--ink-soft)" }}>
         Gagal memuat data prediksi.
@@ -277,7 +281,7 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
       </svg>
 
       {/* Link ke halaman lengkap */}
-      {!hideLink && (
+      {showLink && (
         <div style={{ marginTop: "16px", textAlign: "right" }}>
           <a
             href="#/province"

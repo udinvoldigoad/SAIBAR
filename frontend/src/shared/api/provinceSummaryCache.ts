@@ -69,6 +69,30 @@ export async function fetchProvinceSummary(query = ""): Promise<ProvinceSummaryD
   return res.data;
 }
 
+export type ProvinceTrendRow = NonNullable<ProvinceSummaryData["trend_30_days"]>[number];
+
+let publicTrendCache: { data: ProvinceTrendRow[]; timestamp: number } | null = null;
+
+/**
+ * Tren peluang rob 30 hari untuk halaman publik (landing). Memakai
+ * /public/province/forecast yang anonim — /dashboard/province/summary
+ * khusus admin dan akan 401/403 untuk tamu.
+ */
+export async function fetchPublicProvinceTrend(): Promise<ProvinceTrendRow[]> {
+  if (publicTrendCache && Date.now() - publicTrendCache.timestamp < CACHE_TTL_MS) {
+    return publicTrendCache.data;
+  }
+  const res = await api<{ data: ProvinceTrendRow[] }>("/public/province/forecast");
+  publicTrendCache = { data: res.data, timestamp: Date.now() };
+  return res.data;
+}
+
+/** Kembalikan tren publik dari cache (bisa null). Tidak melakukan fetch. */
+export function getPublicProvinceTrendCached(): ProvinceTrendRow[] | null {
+  if (publicTrendCache && Date.now() - publicTrendCache.timestamp < CACHE_TTL_MS) return publicTrendCache.data;
+  return null;
+}
+
 /** Paksa cache kedaluwarsa (misalnya setelah filter berubah di Province page). */
 export function invalidateProvinceSummaryCache(): void {
   cache = null;
