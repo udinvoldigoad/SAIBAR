@@ -38,8 +38,29 @@ export interface ProvinceSummaryData {
   }[];
   filters?: { month?: string | null; regency?: string | null };
   available_regencies?: string[];
-  top_impacted?: any[];
-  population_audit?: any;
+  top_impacted?: TopImpactedPrediction[];
+  population_audit?: {
+    total_regions: number;
+    with_population: number;
+    official_bps_population: number;
+    missing_population: number;
+    status: "bps_verified" | "region_population_available" | "incomplete";
+  };
+}
+
+export interface TopImpactedPrediction {
+  id: string;
+  prediction_date: string;
+  risk_probability: number;
+  risk_class: "rendah" | "sedang" | "tinggi" | "sangat_tinggi";
+  confidence_score: number | null;
+  max_tidal_height: number | null;
+  village: string | null;
+  district: string | null;
+  regency: string | null;
+  population: number | null;
+  population_source?: string | null;
+  population_provenance_status?: string | null;
 }
 
 interface CacheEntry {
