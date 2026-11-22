@@ -5,6 +5,8 @@ import { fetchOperatorReports, severityLabels, updateOperatorReportStatus, type 
 import { api, downloadFile, errorMessage } from "../../shared/api/client";
 import { Icon } from "../../shared/components/Icon";
 import { LoadingBlock } from "../../shared/components/LoadingBlock";
+import { riskColors, riskLabels } from "../../shared/constants/risk";
+import "./dashboardKit.css";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 
 const containerVariants: Variants = {
@@ -14,6 +16,30 @@ const containerVariants: Variants = {
     transition: { staggerChildren: 0.1, ease: "easeOut" }
   }
 };
+
+/** Warna aksen per tingkat keparahan laporan (selaras badge & garis kiri). */
+const SEVERITY_COLOR: Record<ReportSeverity, string> = {
+  ringan: "var(--low)",
+  sedang: "var(--medium)",
+  parah: "var(--high)",
+  sangat_parah: "var(--critical)",
+};
+
+const relativeTime = new Intl.RelativeTimeFormat("id-ID", { numeric: "auto" });
+
+/** "5 menit lalu", "3 jam lalu", "4 bulan lalu" — seberapa lama laporan menunggu. */
+function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const seconds = Math.round((then - Date.now()) / 1000);
+  const steps: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["year", 31_536_000], ["month", 2_592_000], ["day", 86_400], ["hour", 3_600], ["minute", 60],
+  ];
+  for (const [unit, size] of steps) {
+    if (Math.abs(seconds) >= size) return relativeTime.format(Math.round(seconds / size), unit);
+  }
+  return "baru saja";
+}
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -56,6 +82,8 @@ export function OperatorDashboardPage() {
   const [severityFilter, setSeverityFilter] = useState<ReportSeverity | "">("");
   const [slaOverdue, setSlaOverdue] = useState(false);
   const [activeTab, setActiveTab] = useState<"antrean" | "riwayat">("antrean");
+  // Waktu data terakhir berhasil dimuat (ditampilkan di header halaman).
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   // Untuk mendeteksi kedatangan laporan baru antar polling (null = belum ada baseline).
   const prevPendingRef = useRef<number | null>(null);
   // Panel antrean — target scroll dari tombol "Lihat laporan" di banner.
@@ -99,6 +127,7 @@ export function OperatorDashboardPage() {
       setPage(data.currentPage);
       setPageMeta({ currentPage: data.currentPage, lastPage: data.lastPage, total: data.total, from: data.from, to: data.to });
       setSummary(summaryRes.data);
+      setLastUpdated(new Date());
     } catch (err: unknown) {
       if (seq !== loadSeqRef.current) return;
       toast.error(err instanceof Error ? err.message : "Gagal memuat antrean laporan.");
@@ -159,26 +188,19 @@ export function OperatorDashboardPage() {
   };
 
   return (
-    <AppShell active="operator" title="Dashboard Admin BPBD">
+    <AppShell active="operator" title="Operator">
       <style>{`
         .operator-pagination { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: space-between; padding: 14px 24px; flex-wrap: wrap; }
         .operator-page-btn { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); cursor: pointer; display: inline-flex; height: 34px; justify-content: center; min-width: 34px; padding: 0 10px; }
-        .operator-page-btn:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--accent); }
-        .operator-page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 800; }
+        .operator-page-btn:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--ocean-dark); }
+        .operator-page-btn.active { background: var(--ocean-mid); border-color: var(--ocean-mid); color: #fff; font-weight: 800; }
         .operator-page-btn:disabled { cursor: not-allowed; opacity: .45; }
         .dashboard-split-layout { display: grid; gap: 24px; }
 
-        /* KPI operator: kartu lebih ringkas & angka berukuran standar/modern
-           (bukan 3rem tipis). Di-scope ke .operator-kpis agar dashboard lain
-           tak ikut berubah. */
-        .metric-grid.operator-kpis .metric-card { min-height: 0; padding: 18px 20px; gap: 6px; }
-        .metric-grid.operator-kpis .metric-card span { font-size: 12px; font-weight: 600; }
-        .metric-grid.operator-kpis .metric-card strong { font-size: 1.8rem; font-weight: 700; }
-        .metric-grid.operator-kpis .metric-card small { font-size: 11px; }
-        /* 2 kolom di mobile (override aturan global 1fr !important di ≤768px);
-           spesifisitas .metric-grid.operator-kpis + !important memenangkannya. */
         @media (max-width: 768px) {
-          .metric-grid.operator-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
+          .op-filter-row .op-filter-select { flex: 1 1 100%; width: auto; }
+          .op-filter-row .op-filter-btn { flex: 1 1 0; }
+          .op-filter-row .op-filter-btn.export { margin-left: 0; }
         }
 
         /* Header panel antrean: switcher + subjudul + filter, ditumpuk rapi. */
@@ -188,42 +210,69 @@ export function OperatorDashboardPage() {
         .op-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; padding: 4px; width: 100%; max-width: 400px; }
         .op-tab { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: var(--ink-soft); font: inherit; font-size: 0.9rem; font-weight: 600; padding: 9px 10px; border-radius: 9px; cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; }
         .op-tab:hover { color: var(--ink); }
-        .op-tab.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
+        .op-tab.active { background: var(--surface); color: var(--ocean-dark); box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
         .op-tab-count { font-size: 11px; font-weight: 800; line-height: 1; background: var(--critical); color: #fff; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
 
         .op-subtitle { color: var(--ink-soft); font-size: 12px; }
 
-        /* Filter 3 kolom satu baris; Export CSV hijau. */
-        .op-filter-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 520px; }
+        /* Filter di kiri, Export (tombol sekunder) di kanan. */
+        .op-filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .op-filter-row .op-filter-select { width: 190px; }
+        .op-filter-row .op-filter-btn { width: auto; padding: 0 14px; }
+        .op-filter-row .op-filter-btn.export { margin-left: auto; }
         .op-filter-select, .op-filter-btn { min-width: 0; width: 100%; height: 40px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13px; font-weight: 600; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
         .op-filter-btn { white-space: nowrap; overflow: hidden; }
         .op-filter-btn .op-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .op-filter-btn:hover { border-color: var(--accent); }
+        .op-filter-btn:hover { border-color: var(--ocean-dark); }
         .op-filter-btn.active { background: var(--critical); border-color: var(--critical); color: #fff; }
-        .op-filter-btn.export { background: var(--low); border-color: var(--low); color: #fff; }
-        .op-filter-btn.export:hover { border-color: var(--low); filter: brightness(0.94); }
+        .op-filter-btn.export { color: var(--ocean-dark); }
+        .op-filter-btn.export:hover { background: var(--ocean-light); border-color: var(--ocean-dark); }
 
-        /* Baris laporan: rapi & proporsional. */
-        .op-report-row { padding: 18px 20px; }
-        .op-report-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-        .op-report-head > div:first-child { min-width: 0; }
-        .op-report-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-        .op-report-desc { font-size: 14px; color: var(--ink); margin: 12px 0 0; padding: 14px 16px; background: var(--surface-soft); border-radius: var(--radius); }
-        .op-report-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        /* Baris laporan ringkas: tinggi air | isi | aksi. */
+        .op-report { border-bottom: 1px solid var(--line); border-left: 4px solid transparent; padding: 16px 20px; transition: background .15s; }
+        .op-report:hover { background: color-mix(in srgb, var(--surface-soft) 55%, transparent); }
+        .op-report:last-child { border-bottom: 0; }
+        .op-report-grid { align-items: center; display: grid; gap: 16px; grid-template-columns: 68px minmax(0, 1fr) auto; }
+        .op-water { align-items: center; background: color-mix(in srgb, var(--sev) 12%, transparent); border-radius: 12px; color: var(--sev); display: flex; flex-direction: column; justify-content: center; line-height: 1; min-height: 64px; padding: 8px 4px; }
+        .op-water strong { font-size: 1.45rem; font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.02em; }
+        .op-water span { font-size: 11px; font-weight: 700; margin-top: 3px; opacity: .85; }
+        .op-water.none strong { font-size: 1.1rem; }
+        .op-report-title { color: var(--ink); font-size: 15px; font-weight: 700; line-height: 1.35; }
+        .op-report-title span { color: var(--ink-soft); font-weight: 500; }
+        .op-report-meta { align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; font-size: 12.5px; gap: 4px 10px; margin-top: 3px; }
+        .op-report-meta code { background: var(--surface-soft); border-radius: 6px; color: var(--ink); font-size: 11.5px; padding: 1px 6px; }
+        .op-report-meta .material-symbols-outlined { font-size: 15px; vertical-align: -3px; }
+        .op-report-text { -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--ink); display: -webkit-box; font-size: 13.5px; line-height: 1.5; margin: 6px 0 0; overflow: hidden; }
+        .op-report-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        /* Badge keparahan memakai warna yang sama dengan kotak tinggi air, di
+           mode terang & gelap (gaya badge global tak konsisten di mode gelap). */
+        :root .op-report-tags .badge[class] { background: color-mix(in srgb, var(--sev) 13%, transparent); border-color: transparent; color: var(--sev); font-size: 11.5px; font-weight: 700; padding: 3px 9px; }
+        .op-chip { align-items: center; border-radius: 999px; display: inline-flex; font-size: 11.5px; font-weight: 700; gap: 4px; padding: 3px 9px; }
+        .op-chip .material-symbols-outlined { font-size: 14px; }
+        .op-chip.late { background: color-mix(in srgb, var(--critical) 12%, transparent); color: var(--critical); }
+        .op-chip.triage { background: color-mix(in srgb, var(--medium) 16%, transparent); color: #b45309; }
+        :root[data-theme="dark"] .op-chip.triage { color: #fbbf24; }
+        .op-report-actions { align-items: center; display: flex; gap: 6px; }
+        .op-act { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; color: var(--ink); cursor: pointer; display: inline-flex; font: inherit; font-size: 13px; font-weight: 650; gap: 5px; height: 36px; padding: 0 12px; text-decoration: none; white-space: nowrap; }
+        .op-act .material-symbols-outlined { font-size: 18px; }
+        .op-act:hover { border-color: var(--ocean-dark); }
+        .op-act.validate { background: var(--low); border-color: var(--low); color: #fff; }
+        .op-act.validate:hover { filter: brightness(1.06); }
+        .op-act.reject { color: var(--critical); }
+        .op-act.reject:hover { background: color-mix(in srgb, var(--critical) 8%, transparent); border-color: var(--critical); }
 
         @media (max-width: 768px) {
           .op-panel-head { padding: 16px; }
           .op-tabs { max-width: none; }
           /* Label tombol filter diringkas ("SLA"/"Export") agar muat 3 kolom. */
           .op-btn-suffix { display: none; }
-          .op-report-row { padding: 16px; }
-          /* Badge severity/SLA turun ke bawah judul (chip) agar tak menekan judul. */
-          .op-report-head { flex-direction: column; }
-          .op-report-badges { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
-          /* Aksi proporsional: Validasi full-width, Tolak & Detail berbagi baris. */
-          .op-report-actions { flex-wrap: wrap; justify-content: stretch; }
-          .op-report-actions .btn { flex: 1 1 calc(50% - 5px); min-width: 0; justify-content: center; padding: 11px 12px; }
-          .op-report-actions .op-act-primary { flex-basis: 100%; }
+          .op-report { padding: 14px 16px; }
+          .op-report-grid { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: start; }
+          .op-water { min-height: 56px; }
+          .op-water strong { font-size: 1.2rem; }
+          /* Aksi di bawah, selebar kartu: Validasi | Tolak | Detail. */
+          .op-report-actions { grid-column: 1 / -1; }
+          .op-report-actions .op-act { flex: 1 1 0; justify-content: center; min-width: 0; }
         }
       `}</style>
       <motion.div
@@ -232,61 +281,76 @@ export function OperatorDashboardPage() {
         initial="hidden"
         animate="show"
       >
-        {/* Alert Banner */}
-        <motion.div variants={itemVariants} className="alert" style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "14px", flex: "1 1 300px" }}>
-            <motion.div 
-              animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }} 
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              style={{ flexShrink: 0 }}
-            >
-              <Icon name="warning" style={{ fontSize: "24px", color: "#7a1a13" }} />
-            </motion.div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "15px", fontWeight: 600 }}>
-                {pendingCount} laporan baru/review di {operatorArea} · dicek otomatis tiap 30 detik
-              </div>
-              <div style={{ fontSize: "13px", opacity: 0.9, marginTop: "2px" }}>
-                {triageCountOnPage > 0 ? `${triageCountOnPage} dari ${reports.length} laporan pada halaman ini berada di luar wilayah pantauan rob.` : "Utamakan validasi laporan dengan tingkat keparahan Sangat Parah."}
-              </div>
-            </div>
+        {/* Header halaman */}
+        <motion.div variants={itemVariants} className="dash-head">
+          <div>
+            <h1>Validasi &amp; Pemantauan</h1>
+            <p>Tinjau laporan warga dan pantau prediksi rob di {operatorArea}.</p>
           </div>
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => queueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="btn primary"
-            style={{ background: "#7a1a13", borderColor: "#7a1a13", fontSize: "13px", whiteSpace: "nowrap" }}
-          >
-            Lihat laporan <Icon name="arrow_downward" style={{ fontSize: "16px" }} />
-          </motion.button>
+          <button type="button" className="dash-refresh" onClick={() => void loadReports(pageRef.current)} title="Muat ulang data sekarang">
+            <span className="dash-live-dot" aria-hidden="true" />
+            {lastUpdated
+              ? `Diperbarui ${lastUpdated.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · otomatis tiap 30 detik`
+              : "Memuat data…"}
+            <Icon name="refresh" />
+          </button>
+        </motion.div>
+
+        {/* Strip status antrean: tenang saat kosong, menonjol saat ada laporan */}
+        <motion.div variants={itemVariants} className={`dash-status ${pendingCount > 0 ? "busy" : "calm"}`} role="status">
+          <span className="dash-status-icon"><Icon name={pendingCount > 0 ? "pending_actions" : "task_alt"} /></span>
+          <div className="dash-status-text">
+            <strong>
+              {pendingCount > 0
+                ? `${pendingCount.toLocaleString("id-ID")} laporan menunggu validasi`
+                : "Tidak ada laporan yang menunggu validasi"}
+            </strong>
+            <span>
+              {pendingCount > 0
+                ? (triageCountOnPage > 0
+                    ? `${triageCountOnPage} laporan di halaman ini berada di luar wilayah pantauan rob — periksa lokasinya.`
+                    : "Utamakan laporan dengan tingkat keparahan Sangat Parah dan SLA terlambat.")
+                : "Laporan warga baru akan muncul di sini dan memberi notifikasi otomatis."}
+            </span>
+          </div>
+          {pendingCount > 0 && (
+            <button
+              type="button"
+              className="dash-status-btn"
+              onClick={() => queueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              Tinjau antrean <Icon name="arrow_downward" style={{ fontSize: 17 }} />
+            </button>
+          )}
         </motion.div>
 
         {/* KPI Grid */}
-        <motion.div variants={containerVariants} className="metric-grid operator-kpis" style={{ marginBottom: "32px" }}>
+        <motion.div variants={containerVariants} className="dash-kpis">
           {[
-            { title: "Kelurahan pantau aktif", val: summary.monitored_villages, sub: "wilayah pesisir", cls: "" },
-            { title: "Bahaya Sangat Tinggi", val: summary.critical_villages, sub: "kelurahan hari ini", cls: "critical" },
-            { title: "Laporan menunggu", val: summary.pending_reports, sub: "perlu validasi", cls: "medium", customColor: "var(--medium)" },
-            { title: "Validasi bulan ini", val: summary.monthly_validations, sub: "laporan disetujui", cls: "success" }
+            { title: "Kelurahan dipantau", val: summary.monitored_villages, sub: "wilayah pesisir aktif", icon: "location_city", color: "var(--ocean-dark)", alert: false },
+            { title: "Risiko sangat tinggi", val: summary.critical_villages, sub: "kelurahan, prediksi hari ini", icon: "warning", color: riskColors.sangat_tinggi, alert: summary.critical_villages > 0 },
+            { title: "Menunggu validasi", val: summary.pending_reports, sub: "laporan warga", icon: "pending_actions", color: "#d97706", alert: summary.pending_reports > 0 },
+            { title: "Divalidasi bulan ini", val: summary.monthly_validations, sub: "laporan disetujui", icon: "verified", color: riskColors.rendah, alert: false },
           ].map((kpi, idx) => (
-            <motion.div 
-              key={idx}
-              variants={itemVariants} 
-              whileHover={{ y: -6, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
-              className={`metric-card ${kpi.cls}`}
+            <motion.div
+              key={kpi.title}
+              variants={itemVariants}
+              className="dash-kpi"
+              style={{ ["--kpi-color" as string]: kpi.color }}
             >
-              <span style={{ color: kpi.customColor ? "var(--ink-soft)" : undefined }}>{kpi.title}</span>
-              <motion.strong 
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 + (idx * 0.1), type: "spring", stiffness: 200 }}
-                style={{ color: kpi.customColor }}
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">{kpi.title}</span>
+                <span className="dash-kpi-icon"><Icon name={kpi.icon} /></span>
+              </div>
+              <motion.strong
+                className={kpi.alert ? "dash-kpi-value is-alert" : "dash-kpi-value"}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + idx * 0.06 }}
               >
-                {kpi.val}
+                {kpi.val.toLocaleString("id-ID")}
               </motion.strong>
-              <small style={{ color: kpi.customColor ? "var(--ink-soft)" : undefined }}>{kpi.sub}</small>
+              <span className="dash-kpi-sub">{kpi.sub}</span>
             </motion.div>
           ))}
         </motion.div>
@@ -349,7 +413,7 @@ export function OperatorDashboardPage() {
               </div>
             </div>
 
-            <div className="report-list" style={{ border: "none", borderRadius: 0, maxHeight: "500px", overflowY: "auto" }}>
+            <div className="report-list" style={{ border: "none", borderRadius: 0 }}>
               {isLoading ? (
                 // Skeleton, sama seperti Admin/Riwayat/Audit — teks "Memuat…"
                 // membuat daftar melompat tinggi begitu data datang.
@@ -383,7 +447,9 @@ export function OperatorDashboardPage() {
                 </motion.div>
               ) : (
                 <AnimatePresence>
-                  {reports.map((report) => (
+                  {reports.map((report) => {
+                    const ago = timeAgo(report.createdAt);
+                    return (
                     <motion.div
                       key={report.id}
                       layout
@@ -391,46 +457,61 @@ export function OperatorDashboardPage() {
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0, scale: 0.95 }}
                       transition={{ duration: 0.3 }}
-                      className={`report-row op-report-row severity-left-${report.severity}`}
-                      style={{ display: "block" }}
+                      className={`op-report severity-left-${report.severity}`}
+                      style={{ ["--sev" as string]: SEVERITY_COLOR[report.severity] }}
                     >
-                      <div className="op-report-head">
-                        <div>
-                          <div className="report-title" style={{ fontSize: "15px" }}>Kel. {report.village} &bull; Kec. {report.district}</div>
-                          <p>Dilaporkan: {report.submittedAt} &bull; oleh warga ({report.waterHeightCm ? `${report.waterHeightCm} cm` : "-"})</p>
-                          {!report.isWithinMonitoringArea && <p style={{ color: "var(--medium)", fontWeight: 700 }}>Triase: lokasi di luar wilayah pantauan rob, tetapi masih dalam {report.regency}.</p>}
+                      <div className="op-report-grid">
+                        <div className={report.waterHeightCm ? "op-water" : "op-water none"} title="Tinggi air yang dilaporkan warga">
+                          <strong>{report.waterHeightCm ?? "—"}</strong>
+                          <span>{report.waterHeightCm ? "cm" : "tinggi air"}</span>
                         </div>
-                        <div className="op-report-badges">
-                          <span className={`badge severity-${report.severity}`}>
-                            {severityLabels[report.severity]}
-                          </span>
-                          {report.slaStatus === "terlambat" && (
-                            <span className="badge" style={{ background: "var(--critical)", color: "#fff", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              <Icon name="schedule" style={{ fontSize: 14 }} /> SLA terlambat
+
+                        <div style={{ minWidth: 0 }}>
+                          <div className="op-report-title">
+                            Kel. {report.village} <span>· Kec. {report.district}</span>
+                          </div>
+                          <div className="op-report-meta">
+                            <code>{report.code}</code>
+                            <span title={`Dilaporkan ${report.submittedAt}`}>
+                              <Icon name="schedule" /> {ago || report.submittedAt}
                             </span>
-                          )}
+                            {report.photos.length > 0 && (
+                              <span><Icon name="photo_camera" /> {report.photos.length} foto</span>
+                            )}
+                          </div>
+                          {report.description && <p className="op-report-text">{report.description}</p>}
+                          <div className="op-report-tags">
+                            <span className={`badge severity-${report.severity}`}>{severityLabels[report.severity]}</span>
+                            {report.slaStatus === "terlambat" && (
+                              <span className="op-chip late"><Icon name="timer_off" /> SLA terlambat</span>
+                            )}
+                            {!report.isWithinMonitoringArea && (
+                              <span className="op-chip triage" title={`Lokasi di luar wilayah pantauan rob, tetapi masih dalam ${report.regency}.`}>
+                                <Icon name="location_off" /> Di luar wilayah pantauan
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="op-report-desc">
-                        "{report.description}"
-                      </div>
-                      <div className="op-report-actions">
-                        {activeTab === "antrean" && (
-                          <>
-                            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="btn primary op-act-primary" style={{ background: "var(--low)", padding: "10px 20px", color: "#fff", border: "none" }} onClick={() => handleValidate(report)}>
-                              <Icon name="check_circle" /> Validasi Laporan
-                            </motion.button>
-                            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="btn secondary" style={{ color: "var(--critical)", padding: "10px 20px" }} onClick={() => handleReject(report)}>
-                              <Icon name="close" /> Tolak
-                            </motion.button>
-                          </>
-                        )}
-                        <motion.a whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} href={`#/operator/reports/${report.id}`} className="btn secondary" style={{ padding: "10px 20px" }}>
-                          <Icon name="visibility" /> Detail
-                        </motion.a>
+
+                        <div className="op-report-actions">
+                          {activeTab === "antrean" && (
+                            <>
+                              <button type="button" className="op-act validate" onClick={() => handleValidate(report)}>
+                                <Icon name="check" /> Validasi
+                              </button>
+                              <button type="button" className="op-act reject" onClick={() => handleReject(report)}>
+                                <Icon name="close" /> Tolak
+                              </button>
+                            </>
+                          )}
+                          <a href={`#/operator/reports/${report.id}`} className="op-act" aria-label={`Detail laporan ${report.code}`}>
+                            <Icon name="visibility" /> Detail
+                          </a>
+                        </div>
                       </div>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </AnimatePresence>
               )}
             </div>
@@ -464,17 +545,18 @@ export function OperatorDashboardPage() {
               <div>
                 <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Status Kelurahan {operatorArea}</h2>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>
-                  Prediksi {summary.latest_prediction_date ? `per ${new Date(summary.latest_prediction_date).toLocaleDateString("id-ID")}` : "terbaru"} · 25 kelurahan berisiko teratas.
+                  Prediksi {summary.latest_prediction_date ? `per ${new Date(summary.latest_prediction_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : "terbaru"} · 25 kelurahan berisiko teratas.
                 </p>
               </div>
-              <motion.a whileHover={{ x: 5 }} href="#/map" style={{ fontSize: "0.9rem", color: "var(--accent)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}><Icon name="map" /> Buka peta</motion.a>
+              <motion.a whileHover={{ x: 4 }} href="#/map" style={{ fontSize: "0.9rem", color: "var(--ocean-dark)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}><Icon name="map" /> Buka peta</motion.a>
             </div>
               <div className="table-responsive" style={{ maxHeight: "500px", overflowY: "auto" }}>
                 <table className="data-table" style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--surface-soft)" }}>
                   <th style={{ padding: "14px 24px", fontWeight: 600, color: "var(--ink-soft)", fontSize: "0.85rem" }}>Kecamatan / Kelurahan</th>
-                  <th style={{ padding: "14px 24px", fontWeight: 600, color: "var(--ink-soft)", fontSize: "0.85rem" }}>Bahaya</th>
+                  <th style={{ padding: "14px 24px", fontWeight: 600, color: "var(--ink-soft)", fontSize: "0.85rem" }}>Kelas risiko</th>
+                  <th style={{ padding: "14px 24px", fontWeight: 600, color: "var(--ink-soft)", fontSize: "0.85rem", textAlign: "right" }}>Peluang rob</th>
                   {/* Nilainya regions.population apa adanya (semua kelas) — jangan
                       dilabeli "Pop. risiko" yang bermakna khusus tinggi+ di
                       dashboard provinsi. */}
@@ -483,24 +565,36 @@ export function OperatorDashboardPage() {
               </thead>
               <tbody>
                 {summary.region_statuses.map((row, idx) => {
-                  const severityClass = row.risk_class === "sangat_tinggi" ? "sangat_parah" : row.risk_class === "tinggi" ? "parah" : row.risk_class === "rendah" ? "ringan" : row.risk_class;
-                  const label = row.risk_class === "sangat_tinggi" ? "Sangat Tinggi" : row.risk_class.charAt(0).toUpperCase() + row.risk_class.slice(1);
+                  const color = riskColors[row.risk_class] ?? riskColors.rendah;
+                  const label = riskLabels[row.risk_class] ?? row.risk_class;
+                  const probability = Math.max(0, Math.min(100, Math.round(Number(row.risk_probability ?? 0))));
+                  const population = Number(row.population ?? 0);
                   return (
-                  <motion.tr 
+                  <motion.tr
                     key={row.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 + (idx * 0.05) }}
-                    
-                    style={{ borderBottom: "1px solid var(--line)" }}
+                    transition={{ delay: 0.2 + (idx * 0.03) }}
+                    style={{ borderBottom: "1px solid var(--line)", ["--pill" as string]: color }}
                   >
-                    <td style={{ padding: "16px 24px", fontWeight: 500 }}>{row.village ?? row.district ?? "Wilayah pantau"}<div style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 4 }}>{row.district ?? "-"}, {row.regency ?? "-"}</div></td>
-                    <td style={{ padding: "16px 24px" }}><span className={`badge severity-${severityClass}`}>{label}</span></td>
-                    <td style={{ padding: "16px 24px", textAlign: "right" }}>{Number(row.population ?? 0).toLocaleString("id-ID")}</td>
+                    <td style={{ padding: "14px 24px", fontWeight: 600 }}>{row.village ?? row.district ?? "Wilayah pantau"}<div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 3, fontWeight: 400 }}>{row.district ?? "-"}, {row.regency ?? "-"}</div></td>
+                    <td style={{ padding: "14px 24px" }}><span className="dash-pill"><i />{label}</span></td>
+                    <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                      <span className="dash-prob">
+                        <span className="dash-prob-bar" aria-hidden="true"><span style={{ width: `${probability}%` }} /></span>
+                        <b>{probability}%</b>
+                      </span>
+                    </td>
+                    {/* 0/null = data populasi belum tersedia, bukan "tanpa penduduk". */}
+                    <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                      {population > 0
+                        ? population.toLocaleString("id-ID")
+                        : <span className="dash-muted" title="Data populasi kelurahan ini belum tersedia">—</span>}
+                    </td>
                   </motion.tr>
                 );})}
                 {summary.region_statuses.length === 0 && (
-                  <tr><td colSpan={3} style={{ padding: "16px 24px", color: "var(--ink-soft)" }}>Belum ada data prediksi untuk cakupan provinsi.</td></tr>
+                  <tr><td colSpan={4} style={{ padding: "16px 24px", color: "var(--ink-soft)" }}>Belum ada data prediksi untuk cakupan provinsi.</td></tr>
                 )}
                 </tbody>
               </table>

@@ -1,0 +1,64 @@
+/* Komponen tampilan bersama dashboard admin (Operator & Pantauan Provinsi):
+ * header halaman, strip status, kartu KPI, pil kelas risiko, batang peluang.
+ * Aksen biru laut (--ocean-*) agar selaras dengan tema landing. */
+
+/* ── Header halaman ─────────────────────────────────────────────────── */
+.dash-head { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; margin-bottom: 20px; }
+.dash-head h1 { color: var(--ink); font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
+.dash-head p { color: var(--ink-soft); font-size: 14px; margin: 0; }
+.dash-refresh { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); display: inline-flex; font: inherit; font-size: 12.5px; font-weight: 600; gap: 6px; padding: 7px 12px; }
+button.dash-refresh { cursor: pointer; }
+button.dash-refresh:hover { border-color: var(--ocean-dark); color: var(--ocean-dark); }
+.dash-refresh .material-symbols-outlined { font-size: 17px; }
+.dash-live-dot { background: var(--low); border-radius: 50%; box-shadow: 0 0 0 3px color-mix(in srgb, var(--low) 22%, transparent); height: 7px; width: 7px; }
+
+/* ── Strip status: tenang saat aman, menonjol saat perlu perhatian ──── */
+.dash-status { align-items: center; border: 1px solid; border-radius: 14px; display: flex; flex-wrap: wrap; gap: 14px 18px; margin-bottom: 24px; padding: 14px 18px; }
+.dash-status.calm { background: color-mix(in srgb, var(--low) 8%, var(--surface)); border-color: color-mix(in srgb, var(--low) 28%, transparent); }
+.dash-status.busy { background: color-mix(in srgb, var(--medium) 10%, var(--surface)); border-color: color-mix(in srgb, var(--medium) 40%, transparent); }
+.dash-status-icon { align-items: center; border-radius: 11px; display: inline-flex; flex: none; height: 40px; justify-content: center; width: 40px; }
+.dash-status.calm .dash-status-icon { background: color-mix(in srgb, var(--low) 16%, transparent); color: var(--low); }
+.dash-status.busy .dash-status-icon { background: color-mix(in srgb, var(--medium) 18%, transparent); color: #b45309; }
+:root[data-theme="dark"] .dash-status.busy .dash-status-icon { color: #fbbf24; }
+.dash-status-text { flex: 1 1 280px; min-width: 0; }
+.dash-status-text strong { color: var(--ink); display: block; font-size: 15px; }
+.dash-status-text span { color: var(--ink-soft); font-size: 13px; }
+.dash-status-btn { align-items: center; background: var(--ocean-mid); border: 0; border-radius: 10px; color: #fff; cursor: pointer; display: inline-flex; font: inherit; font-size: 13.5px; font-weight: 700; gap: 6px; padding: 10px 16px; white-space: nowrap; }
+.dash-status-btn:hover { filter: brightness(1.08); }
+
+/* ── Kartu KPI ──────────────────────────────────────────────────────── */
+.dash-kpis { display: grid; gap: 16px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 28px; }
+.dash-kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; }
+.dash-kpi-top { align-items: center; display: flex; gap: 10px; justify-content: space-between; margin-bottom: 6px; }
+.dash-kpi-label { color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+.dash-kpi-icon { align-items: center; background: color-mix(in srgb, var(--kpi-color) 13%, transparent); border-radius: 10px; color: var(--kpi-color); display: inline-flex; flex: none; height: 34px; justify-content: center; width: 34px; }
+.dash-kpi-icon .material-symbols-outlined { font-size: 19px; }
+.dash-kpi-value { color: var(--ink); font-size: 1.9rem; font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.dash-kpi-value.is-alert { color: var(--kpi-color); }
+.dash-kpi-sub { color: var(--ink-soft); font-size: 12px; }
+
+/* ── Tabel: pil kelas risiko, batang peluang, chip tren ─────────────── */
+.dash-pill { align-items: center; background: color-mix(in srgb, var(--pill) 12%, transparent); border-radius: 999px; color: var(--pill); display: inline-flex; font-size: 12px; font-weight: 700; gap: 6px; padding: 4px 10px; white-space: nowrap; }
+.dash-pill i { background: var(--pill); border-radius: 50%; height: 7px; width: 7px; }
+.dash-prob { align-items: center; display: inline-flex; gap: 10px; justify-content: flex-end; min-width: 120px; }
+.dash-prob-bar { background: var(--surface-soft); border-radius: 999px; height: 6px; overflow: hidden; width: 70px; }
+.dash-prob-bar span { background: var(--pill); border-radius: inherit; display: block; height: 100%; }
+.dash-prob b { font-variant-numeric: tabular-nums; min-width: 38px; text-align: right; }
+.dash-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.dash-muted { color: var(--ink-soft); }
+.dash-trend { align-items: center; border-radius: 999px; display: inline-flex; font-size: 12px; font-weight: 700; gap: 4px; padding: 4px 10px; white-space: nowrap; }
+.dash-trend .material-symbols-outlined { font-size: 16px; }
+.dash-trend.up { background: color-mix(in srgb, var(--critical) 11%, transparent); color: var(--critical); }
+.dash-trend.down { background: color-mix(in srgb, var(--low) 13%, transparent); color: var(--low); }
+.dash-trend.flat { background: var(--surface-soft); color: var(--ink-soft); }
+
+@media (max-width: 1024px) {
+  .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .dash-kpis { gap: 10px; }
+  .dash-kpi { padding: 14px; }
+  .dash-kpi-value { font-size: 1.5rem; }
+  .dash-head h1 { font-size: 1.3rem; }
+  .dash-status-btn { justify-content: center; width: 100%; }
+}

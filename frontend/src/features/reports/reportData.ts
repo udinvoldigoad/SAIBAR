@@ -13,6 +13,8 @@ export type OperatorReport = {
   status: ReportStatus;
   incidentTime: string;
   submittedAt: string;
+  /** Waktu laporan dibuat (ISO, dari backend) — untuk label relatif "3 jam lalu". */
+  createdAt: string;
   waterHeightCm: number | null;
   reporter: string;
   coordinates: string;
@@ -94,6 +96,7 @@ function mapReport(report: BackendReport): OperatorReport {
     status: report.status,
     incidentTime: dateTimeFormatter.format(parseApiDate(report.incident_time)),
     submittedAt: dateTimeFormatter.format(parseApiDate(report.created_at)),
+    createdAt: report.created_at,
     waterHeightCm: report.water_height_cm,
     reporter: report.reporter?.name ?? "Warga",
     coordinates: `${report.latitude}, ${report.longitude}`,
