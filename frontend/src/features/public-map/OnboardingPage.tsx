@@ -1,308 +1,135 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { AppShell } from "../../shared/components/AppShell";
 import { Icon } from "../../shared/components/Icon";
-import { motion, AnimatePresence } from "framer-motion";
-import { api } from "../../shared/api/client";
-import { MapPreview } from "../../shared/components/MapPreview";
 import { getCurrentUser, isLoggedIn } from "../../shared/auth/session";
+import { GuideRiskExample } from "./GuideRiskExample";
+import "./onboardingGuide.css";
 
-type Prediction = { risk_class: string; risk_probability: number; region?: { village?: string | null; regency?: string | null } | null };
-type PredictionResponse = { data: Prediction[] };
+const contents = [
+  { id: "guide-reading", label: "Baca peta", icon: "map" },
+  { id: "guide-preparedness", label: "Siapkan diri", icon: "shield" },
+  { id: "guide-reporting", label: "Kirim laporan", icon: "edit_note" },
+  { id: "guide-questions", label: "Tanya jawab", icon: "help_outline" },
+];
 
-const faqData = [
-  {
-    q: "Seberapa akurat prediksi banjir rob SAIBAR?",
-    a: "Prediksi adalah alat kewaspadaan, bukan kepastian kejadian. Gunakan informasi risiko bersama arahan resmi BPBD dan kondisi nyata di lapangan."
-  },
-  {
-    q: "Data apa yang digunakan model prediksi?",
-    a: "Model memadukan data cuaca dan gelombang laut historis dari Open-Meteo (reanalisis ERA5), proyeksi pasang surut berbasis model harmonik per stasiun, faktor spasial elevasi & jarak ke pantai per kelurahan, serta kejadian rob riil (BNPB DIBI) dan laporan lapangan warga yang telah divalidasi BPBD. Integrasi sumber resmi seperti pasang surut BIG/Pushidrosal dan prakiraan BMKG sedang disiapkan secara bertahap."
-  },
-  {
-    q: "Siapa saja yang bisa menggunakan SAIBAR?",
-    a: "Peta publik dapat diakses oleh siapa saja tanpa login. Fitur pelaporan tersedia untuk warga terdaftar. Dashboard BPBD dikhususkan untuk operator kabupaten/kota dan BPBD Provinsi Lampung."
-  },
-  {
-    q: "Seberapa sering peta diperbarui?",
-    a: "Prediksi diperbarui otomatis setiap hari sekitar pukul 06:00 WIB melalui pipeline model, dan dapat dijalankan ulang oleh operator saat ada pembaruan data penting. Laporan warga yang telah divalidasi BPBD langsung tampil di peta."
-  }
+const preparation = {
+  before: [
+    "Cek pembaruan cuaca dan peringatan rob dari BMKG.",
+    "Simpan dokumen dan barang penting di tempat yang lebih tinggi.",
+    "Perhatikan arahan BPBD setempat sebelum beraktivitas di pesisir.",
+  ],
+  during: [
+    "Utamakan keselamatan dan ikuti arahan petugas setempat.",
+    "Jangan menerobos arus air atau berkendara melewati banjir.",
+    "Jangan menyentuh peralatan listrik saat berdiri di genangan.",
+  ],
+};
+
+const questions = [
+  { q: "Apakah 0% berarti pasti aman?", a: "Tidak. Angka yang tampil adalah hasil prediksi untuk wilayah dan tanggal yang dipilih, bukan jaminan tidak terjadi rob. Tetap periksa pembaruan, kondisi sekitar, dan arahan BPBD." },
+  { q: "Apa bedanya Mode Awam dan Peta Risiko?", a: "Mode Awam memberi ringkasan risiko dan langkah yang mudah dipahami untuk suatu lokasi. Peta Risiko membantu Anda menjelajahi wilayah, mengganti tanggal prediksi, dan memilih lapisan peta." },
+  { q: "Mengapa lokasi saya belum ada datanya?", a: "Lokasi bisa berada di luar wilayah pantauan, atau prediksi untuk tanggal tersebut belum tersedia. Coba pilih wilayah atau tanggal lain di Peta Risiko. Belum ada data tidak berarti wilayah tersebut pasti aman." },
+  { q: "Apakah saya perlu masuk akun?", a: "Anda dapat melihat peta, Mode Awam, dan panduan tanpa masuk akun. Untuk mengirim laporan kejadian, Anda perlu masuk terlebih dahulu." },
+  { q: "Kapan laporan saya muncul di peta?", a: "Laporan diperiksa oleh petugas terlebih dahulu. Setelah divalidasi, laporan dapat ditampilkan di peta. Pengguna yang sudah masuk dapat mengecek status laporannya melalui menu Riwayat Laporan." },
 ];
 
 export function OnboardingPage() {
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
-
-  // CTA "Mulai Melapor" harus mengarah ke login bila belum autentikasi.
-  let reportHref = "#/login";
-  if (isLoggedIn()) {
-    const role = getCurrentUser()?.role;
-    reportHref = role === "warga" || role === "admin" ? "#/reports" : "#/map";
-  }
+  const [activeSection, setActiveSection] = useState(contents[0].id);
+  const [phase, setPhase] = useState<keyof typeof preparation>("before");
+  const loggedIn = isLoggedIn();
+  const user = getCurrentUser();
+  const canViewHistory = loggedIn && !!user && ["warga", "admin"].includes(user.role);
 
   useEffect(() => {
-    void api<PredictionResponse>("/public/predictions").then((response) => setPredictions(response.data)).catch(() => undefined);
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]) setActiveSection(visible[0].target.id);
+    }, { rootMargin: "-96px 0px -55% 0px", threshold: 0 });
+    contents.forEach(({ id }) => { const section = document.getElementById(id); if (section) observer.observe(section); });
+    const initialSection = new URLSearchParams(window.location.hash.split("?")[1]).get("bagian");
+    let frame = 0;
+    if (initialSection && contents.some(({ id }) => id === initialSection)) frame = requestAnimationFrame(() => document.getElementById(initialSection)?.scrollIntoView({ block: "start" }));
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, []);
 
-  const highestRisk = useMemo(() => predictions.reduce<Prediction | null>((highest, item) => {
-    const rank: Record<string, number> = { rendah: 1, sedang: 2, tinggi: 3, sangat_tinggi: 4 };
-    return !highest || (rank[item.risk_class] ?? 0) > (rank[highest.risk_class] ?? 0) ? item : highest;
-  }, null), [predictions]);
-  const highRiskCount = predictions.filter((item) => ["tinggi", "sangat_tinggi"].includes(item.risk_class)).length;
+  const goToSection = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    const section = document.getElementById(id);
+    if (!section) return;
+    event.preventDefault();
+    setActiveSection(id);
+    section.focus({ preventScroll: true });
+    section.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  };
 
   return (
-    <AppShell active="onboarding" title="Panduan Pengguna">
-      <div className="onboarding-page-container">
-        {/* Decorative background blobs for premium feel */}
-        <div className="onboarding-blob blob-1" />
-        <div className="onboarding-blob blob-2" />
-        
-        <div className="content" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 100px", position: "relative", zIndex: 1 }}>
-          <style>{`
-            .app-content:has(.onboarding-page-container) {
-              padding: 0 !important;
-            }
-            .onboarding-page-container {
-              min-height: 100vh;
-              background: linear-gradient(135deg, var(--bg) 0%, var(--blue-soft) 50%, var(--ocean-border) 100%);
-              position: relative;
-              overflow: hidden;
-            }
-            :root[data-theme="dark"] .onboarding-page-container {
-              background: linear-gradient(135deg, #020617 0%, var(--bg) 50%, var(--surface) 100%);
-            }
-            .onboarding-blob {
-              position: absolute;
-              border-radius: 50%;
-              z-index: 0;
-            }
-            .blob-1 {
-              top: -10%; right: -5%; width: 40vw; height: 40vw;
-              background: radial-gradient(circle, var(--ocean-border) 0%, transparent 70%);
-              filter: blur(60px);
-              opacity: 0.15;
-            }
-            .blob-2 {
-              bottom: -10%; left: -10%; width: 50vw; height: 50vw;
-              background: radial-gradient(circle, var(--ocean-dark) 0%, transparent 70%);
-              filter: blur(80px);
-              opacity: 0.2;
-            }
-            :root[data-theme="dark"] .blob-1 {
-              opacity: 0.1;
-            }
-            :root[data-theme="dark"] .blob-2 {
-              opacity: 0.1;
-            }
-            
-            .citizen-guide-grid { display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:stretch; margin-bottom:110px; }
-            .citizen-warning-box { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 24px; display:flex; flex-direction:column; justify-content:center; padding:32px; transition: transform 0.3s ease; }
-            :root[data-theme="dark"] .citizen-warning-box { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
-            .citizen-warning-box:hover { transform: translateY(-5px); }
-            .citizen-warning-label { align-items:center; background:var(--amber-bg); border:1px solid var(--amber-border); border-radius:12px; color:var(--amber); display:inline-flex; font-size:13px; font-weight:800; gap:8px; letter-spacing:.08em; margin-bottom:20px; padding:8px 14px; text-transform:uppercase; }
-            .citizen-warning-list { display:grid; list-style:none; margin:0; padding:0; }
-            .citizen-warning-list li { align-items:center; border-bottom:1px solid var(--line); display:flex; font-size:1.05rem; font-weight:600; color: var(--ink); gap:12px; padding:16px 4px; }
-            .citizen-warning-list li:last-child { border:0; }
-            .citizen-warning-list .material-symbols-outlined, .citizen-warning-label .material-symbols-outlined { color:var(--amber); font-size:22px; }
-            .citizen-map-frame { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border:1px solid rgba(255, 255, 255, 0.5); border-radius:24px; min-height:400px; overflow:hidden; padding:12px; }
-            :root[data-theme="dark"] .citizen-map-frame { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
-            .citizen-report-flow { display:grid; gap:28px; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0 auto; max-width:940px; }
-            .citizen-report-step { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border:1px solid rgba(255, 255, 255, 0.6); border-radius:24px; min-height:260px; padding:32px 26px; text-align:center; transition: all 0.3s ease; }
-            :root[data-theme="dark"] .citizen-report-step { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
-            .citizen-report-step:hover { transform: translateY(-8px); }
-            .citizen-step-number { align-items:center; background: var(--ocean-mid); color:var(--ink-inverse); border-radius:50%; display:flex; font-size:16px; font-weight:800; height:54px; justify-content:center; margin:0 auto 28px; width:54px; }
-            .citizen-step-icon { align-items:center; background:var(--ocean-light); border-radius:12px; color:var(--ocean-mid); display:flex; height:42px; justify-content:center; margin:0 auto 16px; width:42px; }
-            .citizen-report-step h3 { font-size:1.15rem; font-weight: 700; color: var(--ink); margin:0 0 12px; }
-            .citizen-report-step p { font-size:0.95rem; color: var(--ink-soft); line-height:1.6; margin:0 auto; max-width:28ch; }
-            .citizen-feature-box { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border:1px solid rgba(255, 255, 255, 0.6); border-radius:32px; padding:70px; margin-bottom:80px; text-align:center; }
-            :root[data-theme="dark"] .citizen-feature-box { background: rgba(var(--surface-rgb), 0.5); border-color: rgba(255,255,255,0.05); }
-            .citizen-hero-metrics .panel { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 16px; transition: transform 0.2s ease; }
-            :root[data-theme="dark"] .citizen-hero-metrics .panel { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
-            .citizen-hero-metrics .panel:hover { transform: scale(1.03); background: rgba(255, 255, 255, 0.85); }
-            :root[data-theme="dark"] .citizen-hero-metrics .panel:hover { background: rgba(var(--surface-rgb), 0.9); }
-            .onboarding-kicker { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--ink); display: inline-flex; margin: 0 auto 24px; padding: 8px 17px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-            .onboarding-kicker-title { font-size: .86rem; font-weight: 700; letter-spacing: 0; }
-            .faq-item { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 16px; overflow: hidden; margin-bottom: 16px; transition: all 0.3s ease; }
-            :root[data-theme="dark"] .faq-item { background: rgba(var(--surface-rgb), 0.5); border-color: rgba(255,255,255,0.05); }
-            .faq-item:hover { background: rgba(255, 255, 255, 0.85); border-color: rgba(255, 255, 255, 0.8); }
-            :root[data-theme="dark"] .faq-item:hover { background: rgba(var(--surface-rgb), 0.8); border-color: rgba(255,255,255,0.1); }
-            .dark-text { color: var(--ink); }
-            .dark-text-soft { color: var(--ink-soft); }
-            .faq-q-text { font-size: 1.1rem; font-weight: 700; color: var(--ink); }
-            .faq-q-text.active { color: var(--ocean-mid); }
-            :root[data-theme="dark"] .faq-q-text.active { color: var(--ocean-dark); }
-            .faq-a-text { color: var(--ink-soft); }
-            
-            @media(max-width:1080px){ 
-              .citizen-guide-grid,.citizen-report-flow,.citizen-faq-grid{grid-template-columns:1fr!important;gap:32px!important}
-              .citizen-hero-metrics{grid-template-columns:repeat(2, minmax(0, 1fr))!important}
-            }
-            @media(max-width:768px){ 
-              .citizen-guide-grid,.citizen-report-flow,.citizen-faq-grid{grid-template-columns:1fr!important;gap:32px!important}
-              .citizen-map-frame{min-height:300px}
-              .citizen-hero-metrics{grid-template-columns:1fr!important} 
-              .citizen-feature-box{padding:32px!important; margin-bottom:40px!important; border-radius: 24px;}
-              .citizen-report-step p { max-width:100%!important; }
-              .onboarding-hero { padding: 40px 16px 40px !important; margin-bottom: 24px !important; }
-            }
-          `}</style>
-          
-          {/* Modern Cinematic Hero */}
-          <motion.div
-            className="onboarding-hero"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            style={{ 
-              textAlign: "center", 
-              padding: "90px 24px 70px",
-              marginBottom: "40px"
-            }}
-          >
-          <div className="onboarding-kicker">
-            <span className="onboarding-kicker-title">WebGIS Kebencanaan Provinsi Lampung</span>
-          </div>
-          <h1 className="dark-text" style={{ fontSize: "clamp(2.5rem, 4vw, 3.5rem)", fontWeight: 900, margin: "0 auto 20px", maxWidth: 800, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-            Sistem Informasi Prediksi Risiko<br />Banjir Rob Terpadu Provinsi Lampung.
-          </h1>
-          <p className="dark-text-soft" style={{ fontSize: "1.1rem", maxWidth: 640, margin: "0 auto", lineHeight: 1.6 }}>
-            Peta digital interaktif untuk memantau prediksi risiko dan melaporkan kejadian banjir rob di kawasan pesisir Provinsi Lampung secara langsung.
-          </p>
-          <div className="citizen-hero-metrics" style={{ margin: "24px auto 0", maxWidth: 620, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className="panel" style={{ padding: 14, textAlign: "left" }}><span className="dark-text-soft" style={{ display: "block", fontSize: 12 }}>Zona risiko tinggi dipantau</span><strong className="dark-text" style={{ fontSize: 22 }}>{highRiskCount}</strong></div>
-            <div className="panel" style={{ padding: 14, textAlign: "left" }}><span className="dark-text-soft" style={{ display: "block", fontSize: 12 }}>Risiko tertinggi saat ini</span><strong className="dark-text" style={{ fontSize: 14 }}>{highestRisk ? `${highestRisk.region?.village ?? "Wilayah pesisir"} · ${Math.round(highestRisk.risk_probability)}%` : "Memuat data…"}</strong></div>
-          </div>
-        </motion.div>
-
-        {/* Feature 1: Alternating Layout Left */}
-        <motion.div className="citizen-guide-grid"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-        >
-          <div className="citizen-warning-box">
-            <div className="citizen-warning-label"><Icon name="warning" /> Faktor Utama</div>
-            <ul className="citizen-warning-list">
-              <li><Icon name="warning_amber" /> Pasang laut sangat tinggi</li>
-              <li><Icon name="air" /> Angin darat kencang</li>
-              <li><Icon name="brightness_3" /> Fase bulan purnama</li>
-              <li><Icon name="vertical_align_bottom" /> Penurunan muka tanah</li>
-            </ul>
-          </div>
+    <AppShell active="onboarding" title="Panduan" className="guide-app-shell">
+      <div className="guide-page">
+        <header className="guide-intro">
+          <h1>Kenali rob,<br />ketahui langkahnya.</h1>
           <div>
-            <h2 className="dark-text" style={{ fontSize: "3rem", fontWeight: 800, marginBottom: "20px", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Apa itu <span style={{ color: "var(--ocean-dark)" }}>Banjir Rob?</span></h2>
-            <p className="dark-text-soft" style={{ fontSize: "1.05rem", lineHeight: 1.7, marginBottom: "32px" }}>
-              Banjir rob adalah genangan air laut yang meluap ke daratan, sering kali terjadi secara berulang. Di pesisir Lampung, fenomena ini tidak hanya dipicu oleh pasang surut astronomis, tetapi juga diperparah oleh cuaca ekstrem dan aktivitas manusia yang menyebabkan penurunan permukaan tanah.
-            </p>
-            <a href="#/map" className="btn primary" style={{ padding: "16px 28px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}>
-              Lihat Peta Risiko <Icon name="arrow_forward" />
-            </a>
+            <p>Mulai dari lokasi Anda. Pelajari cara membaca risiko, menyiapkan diri, dan melaporkan genangan dengan aman.</p>
+            <div className="guide-intro-actions">
+              <a className="guide-button primary" href="#/awam"><Icon name="my_location" />Cek lokasi saya</a>
+              <a className="guide-button" href="#/map">Buka peta<Icon name="arrow_forward" /></a>
+            </div>
           </div>
-        </motion.div>
+        </header>
 
-        {/* Feature 2: Alternating Layout Right */}
-        <motion.div className="citizen-guide-grid"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-        >
-          <div style={{ order: 1 }}>
-            <h2 className="dark-text" style={{ fontSize: "2rem", fontWeight: 800, marginBottom: "20px", letterSpacing: "-0.02em" }}>Cara Membaca Peta Prediksi</h2>
-            <p className="dark-text-soft" style={{ fontSize: "1.05rem", lineHeight: 1.7, marginBottom: "32px" }}>
-              Sistem prediksi cerdas kami mengubah kemungkinan banjir menjadi empat warna yang mudah dipahami. Ini memudahkan Anda dan petugas untuk mengutamakan tindakan pada area yang paling berisiko.
-            </p>
-            <div style={{ display: "grid", gap: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><div style={{ width: "12px", height: "12px", borderRadius: "50%", background: "var(--critical)" }}></div><strong className="dark-text" style={{ minWidth: "120px" }}>Sangat Tinggi</strong><span className="dark-text-soft" style={{ fontSize: "0.95rem" }}>(&gt;75% Probabilitas)</span></div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><div style={{ width: "12px", height: "12px", borderRadius: "50%", background: "var(--high)" }}></div><strong className="dark-text" style={{ minWidth: "120px" }}>Tinggi</strong><span className="dark-text-soft" style={{ fontSize: "0.95rem" }}>(55–75% Probabilitas)</span></div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><div style={{ width: "12px", height: "12px", borderRadius: "50%", background: "var(--medium)" }}></div><strong className="dark-text" style={{ minWidth: "120px" }}>Sedang</strong><span className="dark-text-soft" style={{ fontSize: "0.95rem" }}>(30–55% Probabilitas)</span></div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><div style={{ width: "12px", height: "12px", borderRadius: "50%", background: "var(--low)" }}></div><strong className="dark-text" style={{ minWidth: "120px" }}>Rendah</strong><span className="dark-text-soft" style={{ fontSize: "0.95rem" }}>(&lt;30% Probabilitas)</span></div>
-            </div>
-          </div>
-          <div className="citizen-map-frame" style={{ order: 2 }}>
-            <MapPreview />
-          </div>
-        </motion.div>
+        <div className="guide-rob-note"><Icon name="waves" /><p><strong>Apa itu rob?</strong> Rob terjadi ketika air laut meluap dan menggenangi daratan di wilayah pesisir.</p></div>
 
-        {/* Feature 3: Full Width Interactive Style */}
-        <motion.div 
-          className="citizen-feature-box"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-        >
-          <h2 className="dark-text" style={{ fontSize: "2rem", fontWeight: 800, marginBottom: "16px", letterSpacing: "-0.02em" }}>Cara Melaporkan Kejadian</h2>
-          <p className="dark-text-soft" style={{ fontSize: "1.05rem", lineHeight: 1.7, maxWidth: 700, margin: "0 auto 48px" }}>
-            Bantu kami menyempurnakan prediksi dengan membagikan kondisi nyata di wilayah Anda. Prosesnya sangat mudah dan langsung terhubung dengan dashboard BPBD.
-          </p>
-          <div className="citizen-report-flow">
-            <div className="citizen-report-step">
-              <div className="citizen-step-number">01</div><span className="citizen-step-icon"><Icon name="location_on" /></span>
-              <h3>Tentukan Lokasi</h3><p>Letakkan pin pada titik kejadian agar wilayah administratif dapat dikenali secara tepat.</p>
-            </div>
-            <div className="citizen-report-step">
-              <div className="citizen-step-number">02</div><span className="citizen-step-icon"><Icon name="waves" /></span>
-              <h3>Isi Detail Keparahan</h3><p>Catat tinggi genangan, waktu kejadian, serta kondisi yang Anda lihat di lapangan.</p>
-            </div>
-            <div className="citizen-report-step">
-              <div className="citizen-step-number">03</div><span className="citizen-step-icon"><Icon name="add_a_photo" /></span>
-              <h3>Unggah & Kirim</h3><p>Lampirkan foto pendukung lalu kirim laporan untuk ditinjau oleh operator BPBD.</p>
-            </div>
-          </div>
-          <div style={{ marginTop: "40px" }}>
-            <a href={reportHref} className="btn primary" style={{ padding: "14px 32px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}>
-              Mulai Melapor Sekarang <Icon name="add_circle" />
-            </a>
-          </div>
-        </motion.div>
+        <div className="guide-layout">
+          <nav className="guide-index" aria-label="Isi panduan">
+            <span>Dalam panduan ini</span>
+            {contents.map((item) => <a key={item.id} href={`#/onboarding?bagian=${item.id}`} onClick={(event) => goToSection(event, item.id)} aria-current={activeSection === item.id ? "location" : undefined}>
+              <Icon name={item.icon} />{item.label}
+            </a>)}
+          </nav>
 
-        {/* Modern FAQ Section */}
-        <motion.div className="citizen-faq-grid"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "60px", alignItems: "flex-start" }}
-        >
-          <div>
-            <h2 className="dark-text" style={{ fontSize: "2rem", fontWeight: 800, marginBottom: "16px", letterSpacing: "-0.02em" }}>FAQ</h2>
-            <p className="dark-text-soft" style={{ fontSize: "1.05rem", lineHeight: 1.7 }}>
-              Pertanyaan umum mengenai penggunaan portal SAIBAR dan akurasi model prediksinya.
-            </p>
-          </div>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {faqData.map((item, i) => (
-              <div key={i} className="faq-item">
-                <div 
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "24px", transition: "background 0.3s" }}
-                >
-                  <strong className={`faq-q-text ${openFaq === i ? 'active' : ''}`}>{item.q}</strong>
-                  <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }} transition={{ duration: 0.3 }}>
-                    <Icon name="expand_more" style={{ color: openFaq === i ? "var(--ocean-dark)" : "var(--ink-soft)", fontSize: "24px" }} />
-                  </motion.div>
+          <div className="guide-articles">
+            <section id="guide-reading" className="guide-section" tabIndex={-1} aria-labelledby="guide-reading-title">
+              <header className="guide-section-head"><h2 id="guide-reading-title">Baca peta, pahami risikonya</h2><p>Warna menunjukkan kelas risiko. Angka persentase menunjukkan peluang terjadinya rob.</p></header>
+              <GuideRiskExample />
+              <ol className="guide-reading-steps">
+                <li><strong>Pilih wilayah Anda</strong><p>Buka Peta Risiko, lalu pilih kabupaten atau sentuh penanda wilayah. Gunakan “Lokasi saya” jika Anda ingin mencari wilayah terdekat.</p></li>
+                <li><strong>Periksa tanggal dan pembaruan</strong><p>Pastikan Anda membaca prediksi untuk tanggal yang diinginkan. Jika data belum diperbarui, perhatikan pemberitahuan di peta.</p></li>
+                <li><strong>Baca risikonya bersama kondisi sekitar</strong><p>Prediksi membantu Anda bersiap. Jika air sudah naik, utamakan kondisi di lapangan dan arahan petugas.</p></li>
+              </ol>
+              <a className="guide-text-link" href="#/map">Coba langsung di Peta Risiko<Icon name="arrow_forward" /></a>
+            </section>
+
+            <section id="guide-preparedness" className="guide-section" tabIndex={-1} aria-labelledby="guide-preparedness-title">
+              <header className="guide-section-head"><h2 id="guide-preparedness-title">Bersiap sebelum air naik</h2><p>Langkah sederhana untuk menjaga diri dan keluarga. Selalu sesuaikan dengan arahan BPBD setempat.</p></header>
+              <div className="guide-preparation">
+                <div className="guide-phase-picker" role="group" aria-label="Pilih kondisi">
+                  <button type="button" aria-pressed={phase === "before"} onClick={() => setPhase("before")}>Sebelum air naik</button>
+                  <button type="button" aria-pressed={phase === "during"} onClick={() => setPhase("during")}>Saat ada genangan</button>
                 </div>
-                <AnimatePresence>
-                  {openFaq === i && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }} 
-                      animate={{ height: "auto", opacity: 1 }} 
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      style={{ overflow: "hidden" }}
-                    >
-                      <div className="faq-a-text" style={{ padding: "0 24px 24px", lineHeight: 1.7, fontSize: "1.05rem" }}>
-                        {item.a}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <ul className="guide-safety-list" aria-live="polite" aria-atomic="true">{preparation[phase].map((item) => <li key={item}><Icon name="check" /><span>{item}</span></li>)}</ul>
+                <p className="guide-safety-reminder"><Icon name="info" />Kirim laporan setelah Anda berada di tempat aman. Jangan mengambil foto jika membahayakan diri.</p>
               </div>
-            ))}
-          </div>
-        </motion.div>
+              <p className="guide-sources">Rujukan: <a href="https://bnpb.go.id/berita/banjir" target="_blank" rel="noopener noreferrer">Panduan banjir BNPB<Icon name="open_in_new" /></a> dan <a href="https://www.bmkg.go.id/peringatan-dini/banjir-pesisir" target="_blank" rel="noopener noreferrer">Peringatan rob BMKG<Icon name="open_in_new" /></a>.</p>
+            </section>
 
+            <section id="guide-reporting" className="guide-section" tabIndex={-1} aria-labelledby="guide-reporting-title">
+              <header className="guide-section-head"><h2 id="guide-reporting-title">Melihat genangan? Bantu laporkan.</h2><p>Laporan Anda membantu petugas mengetahui kondisi di lapangan. Cukup ceritakan apa yang Anda lihat.</p></header>
+              <ol className="guide-report-steps">
+                <li><div><h3>Tandai lokasi kejadian</h3><p>Letakkan pin pada lokasi genangan. Periksa kembali nama wilayah dan titiknya sebelum melanjutkan.</p></div></li>
+                <li><div><h3>Ceritakan kondisi yang Anda lihat</h3><p>Isi waktu kejadian, perkiraan tinggi air dalam sentimeter, dan deskripsi singkat. Keparahan dihitung otomatis dari tinggi air. Perkirakan dari tempat yang aman.</p></div></li>
+                <li><div><h3>Tambahkan foto, lalu kirim</h3><p>Gunakan foto yang diambil dengan aman. Periksa isian dan kirim laporan, lalu simpan kode laporan untuk mengecek statusnya.</p></div></li>
+              </ol>
+              <div className="guide-report-actions"><a className="guide-button primary" href={loggedIn ? "#/reports" : "#/login"}><Icon name="add_location_alt" />{loggedIn ? "Buat laporan" : "Masuk untuk melapor"}</a>{canViewHistory && <a className="guide-text-link" href="#/history">Lihat riwayat laporan<Icon name="arrow_forward" /></a>}</div>
+              <p className="guide-report-hint">Laporan ditinjau oleh petugas sebelum ditampilkan di peta.</p>
+            </section>
+
+            <section id="guide-questions" className="guide-section" tabIndex={-1} aria-labelledby="guide-questions-title">
+              <header className="guide-section-head"><h2 id="guide-questions-title">Masih ada yang ingin diketahui?</h2><p>Jawaban singkat untuk pertanyaan yang sering muncul.</p></header>
+              <div className="guide-faq">{questions.map(({ q, a }) => <details key={q}><summary><span>{q}</span><Icon name="expand_more" /></summary><p>{a}</p></details>)}</div>
+              <div className="guide-finish"><Icon name="explore" /><div><h3>Mulai dari kondisi di sekitar Anda</h3><p>Mode Awam merangkum risiko dan langkah yang perlu diperhatikan.</p></div><a className="guide-button" href="#/awam">Buka Mode Awam<Icon name="arrow_forward" /></a></div>
+            </section>
+          </div>
         </div>
       </div>
     </AppShell>
   );
 }
-
