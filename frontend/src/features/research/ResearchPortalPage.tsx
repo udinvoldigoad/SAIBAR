@@ -7,7 +7,9 @@ import { LoadingBlock } from "../../shared/components/LoadingBlock";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Skeleton } from "../../shared/components/Skeleton";
 import { getCurrentUser } from "../../shared/auth/session";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import "../dashboards/dashboardKit.css";
+import "./researchPortal.css";
 
 interface DatasetData {
   id: string;
@@ -117,6 +119,7 @@ function formatPeriodDate(value: string): string {
 
 export function ResearchPortalPage() {
   const toast = useToast();
+  const reducedMotion = useReducedMotion();
   const currentUser = getCurrentUser();
   const isResearcher = currentUser?.role === "peneliti";
   const [datasets, setDatasets] = useState<DatasetData[]>([]);
@@ -133,6 +136,7 @@ export function ResearchPortalPage() {
   const [datasetMeta, setDatasetMeta] = useState<DatasetResponse["meta"] | null>(null);
   const [availableRegencies, setAvailableRegencies] = useState<string[]>([]);
   const [allDatasetTypes, setAllDatasetTypes] = useState<string[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const datasetDownloadUrl = (dataset: DatasetData, format: "csv" | "json" | "xlsx") => (
     apiUrl(`/api/research/datasets/${dataset.id}/download?format=${format}`)
@@ -192,6 +196,7 @@ export function ResearchPortalPage() {
         const statsRes = await api<ResearchStatsResponse>("/research/stats");
         setStats(statsRes.data);
       }
+      setLastUpdated(new Date());
     } catch (err: unknown) {
       toast.error(errorMessage(err, "Gagal memuat portal penelitian."));
     } finally {
@@ -286,10 +291,25 @@ export function ResearchPortalPage() {
   // tombolnya tak sempat salah berlabel "Buat Kunci" padahal kunci sudah ada.
   const credentialLoading = isResearcher && isLoading && apiKeys.length === 0;
   const keyButtonLabel = activeKey || rawGeneratedKey ? "Regenerasi" : "Buat Kunci";
+  const tabs = isResearcher
+    ? [{ label: "Arsip data", icon: "database" }, { label: "Referensi API", icon: "code" }, { label: "Penggunaan API", icon: "monitoring" }, { label: "Lisensi data", icon: "gavel" }]
+    : [{ label: "Arsip data", icon: "database" }, { label: "Lisensi data", icon: "gavel" }];
 
   return (
     <AppShell active="research" title={isResearcher ? "Arsip & API Peneliti" : "Arsip Data Provinsi"}>
-      <div className="content" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px" }}>
+      <div className="content research-portal">
+        <div className="dash-head">
+          <div>
+            <h1>Arsip Data Lampung</h1>
+            <p>Telusuri data pasang surut, laporan tervalidasi, dan prediksi rob untuk penelitian.</p>
+          </div>
+          <button type="button" className="dash-refresh" disabled={isLoading} onClick={() => void loadResearchData()} title="Muat ulang data sekarang">
+            <Icon name="refresh" />
+            {isLoading ? "Memuat data…" : lastUpdated
+              ? `Diperbarui ${lastUpdated.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`
+              : "Muat ulang data"}
+          </button>
+        </div>
         
         {/* API Key Management Header row */}
         {isResearcher && <div className="cred-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", background: "var(--surface)", padding: "16px 24px", borderRadius: "var(--radius)", border: "1px solid var(--line)" }}>
@@ -354,13 +374,6 @@ export function ResearchPortalPage() {
             .cred-card-actions .skeleton { width: 100% !important; }
           }
 
-          /* KPI peneliti jadi 2 kolom di mobile (override global 1fr !important). */
-          @media (max-width: 768px) {
-            .metric-grid.research-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
-            .metric-grid.research-kpis > div { padding: 16px !important; }
-            .metric-grid.research-kpis > div > div:nth-child(2) { font-size: 1.6rem !important; margin: 6px 0 !important; }
-          }
-
           /* Panduan cepat API: langkah bernomor agar peneliti tak bingung mulai. */
           .api-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 14px; }
           .api-steps li { position: relative; padding-left: 42px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.6; counter-increment: step; }
@@ -376,85 +389,57 @@ export function ResearchPortalPage() {
           .api-error-row code { flex-shrink: 0; font-weight: 700; color: var(--critical); }
           .api-error-row span { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
 
-          /* --- Filter Arsip Data --- */
-          .rp-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 24px; }
-          .rp-search { display: flex; gap: 8px; flex: 1 1 300px; min-width: 0; }
-          .rp-search-field { position: relative; flex: 1; min-width: 0; }
-          .rp-search-ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--ink-soft); pointer-events: none; }
-          .rp-search-field input { width: 100%; height: 44px; box-sizing: border-box; padding: 0 40px 0 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
-          .rp-search-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
-          .rp-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: 8px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; }
-          .rp-search-clear:hover { background: var(--line); color: var(--ink); }
-          .rp-search-go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-          .rp-search-go:hover { filter: brightness(0.96); }
-          .rp-selects { display: flex; gap: 8px; flex-wrap: wrap; }
-          .rp-select { height: 44px; min-width: 150px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; padding: 0 12px; cursor: pointer; }
-          .rp-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
-          .rp-reset { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-          .rp-reset:hover { border-color: var(--critical); color: var(--critical); }
-
-          @media (max-width: 768px) {
-            .rp-filter { display: grid; grid-template-columns: 1fr; gap: 10px; }
-            .rp-search { flex: none; }
-            .rp-go-label { display: none; }
-            .rp-search-go { padding: 0 14px; }
-            .rp-selects { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-            .rp-select { min-width: 0; width: 100%; padding: 0 8px; font-size: 12px; }
-            .rp-reset { width: 100%; }
-          }
         `}</style>
-        <div className="metric-grid research-kpis" style={{ marginBottom: "32px", gap: "20px" }}>
+        <div className="dash-kpis">
           {[
-            { title: "Dataset Tersedia", val: stats.dataset_count || datasets.length, sub: "set data tervalidasi" },
-            { title: "Total Rekaman", val: stats.total_records.toLocaleString("id-ID"), sub: "baris data terdokumentasi" },
-            { title: "Unduhan Bulan Ini", val: stats.downloads_this_month.toLocaleString("id-ID"), sub: "request ekspor/API" },
-            { title: "API Call Tercatat", val: stats.api_calls_today.toLocaleString("id-ID"), sub: `${stats.active_api_keys} kunci aktif` }
-          ].map((kpi, i) => (
-            <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 8, padding: "20px" }}>
-              <div style={{ fontSize: "12px", color: "var(--ink-soft)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>{kpi.title}</div>
-              <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink)", margin: "8px 0" }}>{kpi.val}</div>
-              <div style={{ fontSize: "12px", color: "var(--ink-soft)" }}>{kpi.sub}</div>
+            { title: "Dataset tersedia", val: (stats.dataset_count || datasets.length).toLocaleString("id-ID"), sub: "katalog data penelitian", icon: "database", color: "var(--ocean-dark)" },
+            { title: "Total rekaman", val: stats.total_records.toLocaleString("id-ID"), sub: "baris data terdokumentasi", icon: "table_rows", color: "var(--ocean-dark)" },
+            { title: "Unduhan bulan ini", val: stats.downloads_this_month.toLocaleString("id-ID"), sub: "permintaan ekspor data", icon: "download", color: "var(--low)" },
+            { title: "Panggilan API hari ini", val: stats.api_calls_today.toLocaleString("id-ID"), sub: `${stats.active_api_keys.toLocaleString("id-ID")} kunci API aktif`, icon: "data_object", color: "var(--ocean-dark)" }
+          ].map((kpi) => (
+            <div key={kpi.title} className="dash-kpi" style={{ ["--kpi-color" as string]: kpi.color }}>
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">{kpi.title}</span>
+                <span className="dash-kpi-icon"><Icon name={kpi.icon} /></span>
+              </div>
+              {isLoading && !lastUpdated
+                ? <Skeleton width={85} height={34} borderRadius={6} />
+                : <strong className="dash-kpi-value">{kpi.val}</strong>}
+              <span className="dash-kpi-sub">{kpi.sub}</span>
             </div>
           ))}
         </div>
 
         {/* Tabs Navigation */}
-        <div style={{ display: "flex", gap: "24px", borderBottom: "2px solid var(--line)", marginBottom: "32px" }}>
-          {(isResearcher ? ["Arsip Data", "Referensi API", "Penggunaan API", "Lisensi Data"] : ["Arsip Data", "Lisensi Data"]).map((tab, idx) => (
-            <button 
-              key={idx}
+        <nav className="rp-tabs" aria-label="Bagian arsip data">
+          {tabs.map((tab, idx) => (
+            <button type="button"
+              key={tab.label}
               onClick={() => setActiveTab(idx)}
-              style={{
-                padding: "12px 0",
-                fontSize: "14px",
-                fontWeight: 600,
-                color: activeTab === idx ? "var(--ocean-dark)" : "var(--ink-soft)",
-                border: "none",
-                background: "none",
-                cursor: "pointer",
-                borderBottom: activeTab === idx ? "2px solid var(--ocean-dark)" : "2px solid transparent",
-                marginBottom: "-2px",
-                transition: "all 0.2s"
-              }}
+              className={`rp-tab${activeTab === idx ? " active" : ""}`}
+              aria-pressed={activeTab === idx}
             >
-              {tab}
+              <Icon name={tab.icon} />{tab.label}
             </button>
           ))}
-        </div>
+        </nav>
 
         {/* Tab Content */}
         <div style={{ minHeight: "400px" }}>
           
           {/* Tab 0: Arsip Data */}
           {activeTab === 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
               {/* Filters */}
-              <div className="rp-filter">
-                <div className="rp-search">
+              <div className="rp-filter" role="search" aria-label="Filter dataset">
+                <div className="rp-field rp-search">
+                  <label htmlFor="rp-search">Cari dataset</label>
+                  <div className="rp-search-controls">
                   <div className="rp-search-field">
                     <Icon name="search" className="rp-search-ic" />
                     <input
                       type="text"
+                      id="rp-search"
                       value={datasetFilters.search}
                       onChange={(event) => setDatasetFilters((current) => ({ ...current, search: event.target.value }))}
                       onKeyDown={(event) => { if (event.key === "Enter") applyDatasetFilters(); }}
@@ -468,101 +453,116 @@ export function ResearchPortalPage() {
                     )}
                   </div>
                   <button type="button" className="rp-search-go" onClick={applyDatasetFilters}>
-                    <Icon name="search" style={{ fontSize: 18 }} /> <span className="rp-go-label">Cari</span>
+                    <Icon name="search" /> Cari
                   </button>
+                  </div>
                 </div>
-                <div className="rp-selects">
-                  <select className="rp-select" aria-label="Tahun" value={datasetFilters.year} onChange={(event) => changeDatasetFilter({ year: event.target.value })}>
-                    <option value="">Semua Tahun</option>
+                <div className="rp-field">
+                  <label htmlFor="rp-year">Tahun</label>
+                  <select id="rp-year" className="rp-select" value={datasetFilters.year} onChange={(event) => changeDatasetFilter({ year: event.target.value })}>
+                    <option value="">Semua tahun</option>
                     {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
                   </select>
-                  <select className="rp-select" aria-label="Kabupaten/Kota" value={datasetFilters.regency} onChange={(event) => changeDatasetFilter({ regency: event.target.value })}>
-                    <option value="">Semua Kabupaten</option>
+                </div>
+                <div className="rp-field">
+                  <label htmlFor="rp-regency">Kabupaten/kota</label>
+                  <select id="rp-regency" className="rp-select" value={datasetFilters.regency} onChange={(event) => changeDatasetFilter({ regency: event.target.value })}>
+                    <option value="">Semua wilayah</option>
                     {availableRegencies.map((regency) => <option key={regency} value={regency}>{regency}</option>)}
                   </select>
-                  <select className="rp-select" aria-label="Jenis dataset" value={datasetFilters.type} onChange={(event) => changeDatasetFilter({ type: event.target.value })}>
-                    <option value="">Semua Jenis</option>
+                </div>
+                <div className="rp-field">
+                  <label htmlFor="rp-type">Jenis dataset</label>
+                  <select id="rp-type" className="rp-select" value={datasetFilters.type} onChange={(event) => changeDatasetFilter({ type: event.target.value })}>
+                    <option value="">Semua jenis</option>
                     {availableTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                   </select>
                 </div>
                 {hasDatasetFilters && (
                   <button type="button" className="rp-reset" onClick={resetDatasetFilters}>
-                    <Icon name="restart_alt" style={{ fontSize: 17 }} /> Reset
+                    <Icon name="restart_alt" /> Atur ulang
                   </button>
                 )}
               </div>
 
               {/* Table */}
-              <div className="panel flush" style={{ overflow: "hidden", border: "1px solid var(--line)", marginBottom: "24px" }}>
-              <div className="table-responsive">
-                <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <section className="panel flush rp-catalog" aria-labelledby="rp-catalog-title" aria-busy={isLoading}>
+                <div className="rp-catalog-head">
+                  <div>
+                    <h2 id="rp-catalog-title">Katalog dataset</h2>
+                    <p>Periksa periode dan resolusi data, lalu pilih format unduhan.</p>
+                  </div>
+                  <span className="rp-result-count" role="status">{isLoading ? "Memuat…" : `${(datasetMeta?.total ?? datasets.length).toLocaleString("id-ID")} dataset${hasDatasetFilters ? " ditemukan" : " tersedia"}`}</span>
+                </div>
+                <table className="data-table rp-dataset-table" aria-label="Katalog dataset penelitian">
+                  <colgroup><col className="rp-col-dataset" /><col className="rp-col-period" /><col className="rp-col-records" /><col className="rp-col-download" /></colgroup>
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--surface-soft)" }}>
-                      <th style={{ padding: "16px 20px", fontSize: "13px", fontWeight: 600, color: "var(--ink-soft)" }}>Dataset</th>
-                      <th style={{ padding: "16px 20px", fontSize: "13px", fontWeight: 600, color: "var(--ink-soft)" }}>Jenis</th>
-                      <th style={{ padding: "16px 20px", fontSize: "13px", fontWeight: 600, color: "var(--ink-soft)" }}>Periode</th>
-                      <th style={{ padding: "16px 20px", fontSize: "13px", fontWeight: 600, color: "var(--ink-soft)" }}>Resolusi</th>
-                      <th style={{ padding: "16px 20px", fontSize: "13px", fontWeight: 600, color: "var(--ink-soft)", textAlign: "right" }}>Rekaman</th>
-                      <th style={{ padding: "16px 20px" }}></th>
+                    <tr>
+                      <th scope="col">Dataset</th>
+                      <th scope="col">Periode data</th>
+                      <th scope="col" className="rp-records">Rekaman</th>
+                      <th scope="col" className="rp-download-cell">Unduh data</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {datasets.map((ds, i) => (
-                      <tr key={ds.id} style={{ borderBottom: i === datasets.length - 1 ? "none" : "1px solid var(--line)" }}>
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--ink)" }}>{ds.name}</div>
-                          <div style={{ fontSize: "12px", color: "var(--ink-soft)", marginTop: "4px" }}>{ds.description}</div>
+                    {datasets.map((ds) => (
+                      <tr key={ds.id}>
+                        <td className="rp-dataset-info">
+                          <div className="rp-dataset-name">{ds.name}</div>
+                          <p className="rp-dataset-description">{ds.description}</p>
+                          <div className="rp-dataset-meta">
+                            <span className="rp-type-badge">{ds.dataset_type}</span>
+                            <span className="rp-resolution"><Icon name="schedule" />{ds.resolution}</span>
+                          </div>
                         </td>
-                        <td style={{ padding: "16px 20px" }}>
-                          <span style={{ display: "inline-block", background: "var(--surface-muted)", padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 600, color: "var(--ink)" }}>{ds.dataset_type}</span>
+                        <td className="rp-period" data-label="Periode data">
+                          <span>{formatPeriodDate(ds.period_start)}</span>
+                          <span className="rp-period-end">s.d. {formatPeriodDate(ds.period_end)}</span>
                         </td>
-                        <td style={{ padding: "16px 20px", fontSize: "13px", color: "var(--ink)", whiteSpace: "nowrap" }}>
-                          {formatPeriodDate(ds.period_start)} – {formatPeriodDate(ds.period_end)}
+                        <td className="rp-records" data-label="Rekaman">
+                          <strong className="dash-num">{ds.record_count.toLocaleString("id-ID")}</strong>
+                          <span className="rp-records-unit">baris data</span>
                         </td>
-                        <td style={{ padding: "16px 20px", fontSize: "13px", color: "var(--ink)" }}>{ds.resolution}</td>
-                        <td style={{ padding: "16px 20px", fontSize: "13px", color: "var(--ink)", textAlign: "right", fontWeight: 500 }}>
-                          {ds.record_count.toLocaleString("id-ID")}
-                        </td>
-                        <td style={{ padding: "16px 20px", textAlign: "right" }}>
-                          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                            <button type="button" onClick={() => handleDatasetDownload(ds, "csv")} className="btn primary" style={{ fontSize: "11px", padding: "6px 12px", background: "var(--ocean-dark)", color: "#fff", textDecoration: "none", borderRadius: "6px" }}>
-                              <Icon name="download" style={{ fontSize: "14px" }} /> CSV
+                        <td className="rp-download-cell">
+                          <div className="rp-downloads" role="group" aria-label={`Unduh ${ds.name}`}>
+                            <button type="button" onClick={() => handleDatasetDownload(ds, "csv")} className="rp-download primary" title={`Unduh ${ds.name} sebagai CSV`}>
+                              <Icon name="download" /> CSV
                             </button>
-                            <button type="button" onClick={() => handleDatasetDownload(ds, "xlsx")} className="btn primary" style={{ fontSize: "11px", padding: "6px 12px", background: "var(--green-badge)", color: "#fff", textDecoration: "none", borderRadius: "6px", border: "1px solid var(--green-text)" }}>
-                              <Icon name="table_view" style={{ fontSize: "14px" }} /> EXCEL
+                            <button type="button" onClick={() => handleDatasetDownload(ds, "xlsx")} className="rp-download" title={`Unduh ${ds.name} sebagai Excel`}>
+                              Excel
                             </button>
-                            <button type="button" onClick={() => handleDatasetDownload(ds, "json")} className="btn secondary" style={{ fontSize: "11px", padding: "6px 12px", textDecoration: "none", borderRadius: "6px" }}>
-                              <Icon name="code" style={{ fontSize: "14px" }} /> JSON
+                            <button type="button" onClick={() => handleDatasetDownload(ds, "json")} className="rp-download" title={`Unduh ${ds.name} sebagai JSON`}>
+                              JSON
                             </button>
                           </div>
                         </td>
                       </tr>
                     ))}
                     {isLoading && (
-                      <tr>
-                        <td colSpan={6} style={{ padding: "8px 24px" }}><LoadingBlock rows={4} label="Memuat dataset…" /></td>
+                      <tr className="rp-state-row">
+                        <td colSpan={4}><LoadingBlock rows={4} label="Memuat dataset…" /></td>
                       </tr>
                     )}
                     {datasets.length === 0 && !isLoading && (
-                      <tr>
-                        <td colSpan={6}>
-                          <EmptyState compact icon="database" title="Tidak ada dataset" description="Tidak ada dataset yang cocok dengan filter pencarian." />
+                      <tr className="rp-state-row">
+                        <td colSpan={4}>
+                          <EmptyState compact icon="database" title={hasDatasetFilters ? "Dataset tidak ditemukan" : "Belum ada dataset"} description={hasDatasetFilters ? "Coba kata kunci lain atau atur ulang filter untuk melihat semua dataset." : "Dataset akan tampil di sini setelah tersedia dalam katalog."} />
+                          {hasDatasetFilters && <button type="button" className="rp-empty-reset rp-reset" onClick={resetDatasetFilters}><Icon name="restart_alt" /> Atur ulang filter</button>}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
-              </div>
-              </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--ink-soft)" }}>
+              <div className="rp-pagination">
                 <div>Menampilkan {datasetMeta?.from ?? (datasets.length ? 1 : 0)}–{datasetMeta?.to ?? datasets.length} dari {datasetMeta?.total ?? datasets.length} dataset</div>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <button className="btn secondary" style={{ padding: "6px 10px" }} disabled={(datasetMeta?.current_page ?? 1) <= 1} onClick={() => changeDatasetPage((datasetMeta?.current_page ?? 1) - 1)}>‹</button>
-                  <button className="btn primary" aria-current="page" style={{ padding: "6px 12px", minWidth: 36, background: "var(--ocean-mid)", borderColor: "var(--ocean-mid)", color: "var(--ink-inverse)", fontWeight: 700 }}>{datasetMeta?.current_page ?? 1}</button>
-                  <button className="btn secondary" style={{ padding: "6px 10px" }} disabled={(datasetMeta?.current_page ?? 1) >= (datasetMeta?.last_page ?? 1)} onClick={() => changeDatasetPage((datasetMeta?.current_page ?? 1) + 1)}>›</button>
+                <div className="rp-page-controls" aria-label="Navigasi halaman dataset">
+                  <button type="button" className="rp-page-btn" aria-label="Halaman sebelumnya" disabled={isLoading || (datasetMeta?.current_page ?? 1) <= 1} onClick={() => changeDatasetPage((datasetMeta?.current_page ?? 1) - 1)}><Icon name="chevron_left" /></button>
+                  <span className="rp-page-btn active" aria-current="page" aria-label={`Halaman ${datasetMeta?.current_page ?? 1}`}>{datasetMeta?.current_page ?? 1}</span>
+                  <button type="button" className="rp-page-btn" aria-label="Halaman berikutnya" disabled={isLoading || (datasetMeta?.current_page ?? 1) >= (datasetMeta?.last_page ?? 1)} onClick={() => changeDatasetPage((datasetMeta?.current_page ?? 1) + 1)}><Icon name="chevron_right" /></button>
                 </div>
               </div>
+              </section>
             </motion.div>
           )}
 
@@ -806,9 +806,9 @@ export function ResearchPortalPage() {
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           {items.map((ds) => (
-                            <div key={ds.id} style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "13px", padding: "6px 0", borderTop: "1px solid var(--line)" }}>
+                            <div key={ds.id} className="rp-license-item">
                               <div style={{ color: "var(--ink)", fontWeight: 500 }}>{ds.name}</div>
-                              <div style={{ color: "var(--ink-soft)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                              <div className="rp-license-coverage">
                                 {(ds.coverage_regencies && ds.coverage_regencies.length > 0) ? ds.coverage_regencies.join(", ") : "Cakupan provinsi"}
                               </div>
                             </div>

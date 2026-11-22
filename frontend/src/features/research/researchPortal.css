@@ -1,0 +1,122 @@
+.research-portal { padding-bottom: 80px; }
+.research-portal .dash-refresh:disabled { cursor: wait; opacity: .7; }
+.research-portal button:focus-visible,
+.research-portal .rp-select:focus-visible,
+.research-portal .rp-search-field input:focus-visible {
+  outline: 2px solid var(--ocean-dark);
+  outline-offset: 3px;
+}
+
+/* Tab selaras dengan pemilih antrean/riwayat di halaman operator. */
+.rp-tabs { display: flex; flex-wrap: wrap; gap: 4px; width: fit-content; max-width: 100%; padding: 4px; margin-bottom: 20px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; }
+.rp-tab { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rp-tab .material-symbols-outlined { font-size: 18px; }
+.rp-tab:hover { color: var(--ocean-dark); }
+.rp-tab.active { background: var(--surface); color: var(--ocean-dark); box-shadow: 0 1px 3px rgba(15, 23, 42, .1); }
+
+/* Filter berlabel seperti toolbar Pantauan Provinsi. */
+.rp-filter { display: grid; grid-template-columns: minmax(230px, 1.6fr) minmax(115px, .6fr) minmax(150px, .9fr) minmax(160px, 1fr); align-items: end; gap: 12px; margin-bottom: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.rp-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rp-field > label { color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+.rp-search-controls { display: flex; gap: 8px; min-width: 0; }
+.rp-search-field { position: relative; flex: 1; min-width: 0; }
+.rp-search-ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); font-size: 18px; pointer-events: none; }
+.rp-search-field input { box-sizing: border-box; width: 100%; height: 40px; padding: 0 34px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; }
+.rp-search-field input::placeholder { color: var(--ink-soft); opacity: 1; }
+.rp-search-field input:focus { border-color: var(--ocean-dark); box-shadow: 0 0 0 3px var(--ocean-light); }
+.rp-search-clear { position: absolute; right: 5px; top: 50%; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; transform: translateY(-50%); border: 0; border-radius: 6px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; }
+.rp-search-clear:hover { color: var(--ink); }
+.rp-search-go { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 40px; padding: 0 13px; border: 1px solid var(--ocean-mid); border-radius: 10px; background: var(--ocean-mid); color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rp-search-go .material-symbols-outlined { font-size: 17px; }
+.rp-search-go:hover { filter: brightness(1.08); }
+.rp-select { box-sizing: border-box; width: 100%; min-width: 0; height: 40px; padding: 0 34px 0 11px; border: 1px solid var(--line); border-radius: 10px; background-color: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; box-shadow: none; cursor: pointer; }
+.rp-select:focus { border-color: var(--ocean-dark); box-shadow: 0 0 0 3px var(--ocean-light); }
+.rp-reset { display: inline-flex; align-items: center; justify-content: center; justify-self: start; gap: 5px; min-height: 36px; padding: 0 4px; border: 0; border-radius: 6px; background: transparent; color: var(--ocean-dark); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rp-reset .material-symbols-outlined { font-size: 17px; }
+.rp-reset:hover { text-decoration: underline; }
+
+.research-portal .rp-catalog { border-radius: 14px; box-shadow: none; }
+.research-portal .rp-catalog:hover { border-color: var(--line); box-shadow: none; transform: none; }
+.rp-catalog-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px; border-bottom: 1px solid var(--line); }
+.rp-catalog-head h2 { margin: 0; color: var(--ink); font-size: 1.1rem; font-weight: 700; }
+.rp-catalog-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
+.rp-result-count { flex-shrink: 0; padding: 5px 10px; border-radius: 999px; background: var(--ocean-light); color: var(--ocean-dark); font-size: 12px; font-weight: 600; }
+.research-portal .rp-dataset-table { width: 100%; min-width: 0; table-layout: fixed; }
+.rp-col-dataset { width: 40%; }
+.rp-col-period { width: 20%; }
+.rp-col-records { width: 12%; }
+.rp-col-download { width: 28%; }
+.research-portal .rp-dataset-table th { padding: 12px 20px; background: var(--surface-soft); color: var(--ink-soft); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.research-portal .rp-dataset-table td { padding: 18px 20px; border-color: var(--line); color: var(--ink); vertical-align: middle; white-space: normal; overflow-wrap: anywhere; }
+.rp-dataset-name { font-size: 14px; font-weight: 650; line-height: 1.5; }
+.rp-dataset-description { margin: 4px 0 10px; color: var(--ink-soft); font-size: 12px; font-weight: 400; line-height: 1.6; }
+.rp-dataset-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.rp-type-badge { padding: 3px 9px; border-radius: 999px; background: var(--ocean-light); color: var(--ocean-dark); font-size: 11px; font-weight: 600; line-height: 1.5; }
+.rp-resolution { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-soft); font-size: 11.5px; }
+.rp-resolution .material-symbols-outlined { font-size: 14px; }
+.rp-period > span { display: block; font-size: 12.5px; line-height: 1.7; }
+.rp-period-end { color: var(--ink-soft); }
+.research-portal .rp-dataset-table .rp-records { text-align: right; }
+.rp-records-unit { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 11px; }
+.research-portal .rp-dataset-table .rp-download-cell { text-align: right; }
+.rp-downloads { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.rp-download { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.rp-download .material-symbols-outlined { font-size: 16px; }
+.rp-download:hover { border-color: var(--ocean-dark); color: var(--ocean-dark); }
+.rp-download.primary { border-color: var(--ocean-mid); background: var(--ocean-mid); color: #fff; }
+.rp-download.primary:hover { filter: brightness(1.08); }
+.rp-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 12px; }
+.rp-page-controls { display: flex; gap: 6px; }
+.rp-page-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; }
+button.rp-page-btn { cursor: pointer; }
+button.rp-page-btn:hover:not(:disabled) { border-color: var(--ocean-dark); }
+.rp-page-btn.active { border-color: var(--ocean-mid); background: var(--ocean-mid); color: #fff; font-weight: 700; }
+.rp-page-btn:disabled { cursor: not-allowed; opacity: .4; }
+.rp-page-btn .material-symbols-outlined { font-size: 18px; }
+.rp-empty-reset { display: flex; margin: 0 auto 16px; }
+.rp-license-item { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.rp-license-coverage { color: var(--ink-soft); font-size: 12px; }
+
+@media (max-width: 1150px) {
+  .rp-filter { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rp-search { grid-column: 1 / -1; }
+  .research-portal .rp-dataset-table th,
+  .research-portal .rp-dataset-table td { padding-left: 14px; padding-right: 14px; }
+}
+
+@media (max-width: 768px) {
+  .research-portal .dash-head { align-items: flex-start; }
+  .research-portal .dash-head p { font-size: 13px; line-height: 1.6; }
+  .research-portal .dash-kpi-top { gap: 5px; align-items: flex-start; }
+  .research-portal .dash-kpi-label { font-size: 12px; }
+  .research-portal .dash-kpi-icon { width: 28px; height: 28px; }
+  .research-portal .dash-kpi-icon .material-symbols-outlined { font-size: 17px; }
+  .rp-tabs { box-sizing: border-box; width: 100%; }
+  .rp-tab { flex: 1 1 auto; padding: 9px 10px; font-size: 12px; }
+  .rp-filter { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; }
+  .rp-filter > .rp-field:nth-child(3) { grid-column: 1 / -1; grid-row: 3; }
+  .rp-search-go, .rp-select, .rp-search-field input { height: 44px; }
+  .rp-catalog-head { padding: 16px; }
+  .rp-catalog-head p { line-height: 1.6; }
+
+  /* Periode, jumlah rekaman, dan semua format unduhan tetap terlihat tanpa gulir horizontal. */
+  .rp-dataset-table colgroup { display: none; }
+  .rp-dataset-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .research-portal .rp-dataset-table,
+  .rp-dataset-table tbody { display: block; }
+  .rp-dataset-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 12px; padding: 18px 16px; border-bottom: 1px solid var(--line); }
+  .rp-dataset-table tbody tr:last-child { border-bottom: 0; }
+  .research-portal .rp-dataset-table td { display: block; min-width: 0; padding: 0; border: 0; }
+  .rp-dataset-table .rp-dataset-info,
+  .rp-dataset-table .rp-download-cell,
+  .rp-dataset-table .rp-state-row > td { grid-column: 1 / -1; }
+  .rp-dataset-table td[data-label]::before { display: block; margin-bottom: 4px; color: var(--ink-soft); font-size: 11px; font-weight: 600; content: attr(data-label); }
+  .rp-dataset-description { margin-bottom: 8px; }
+  .rp-downloads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .rp-download { min-height: 40px; }
+  .rp-pagination { padding: 14px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .research-portal *, .research-portal *::before, .research-portal *::after { animation: none !important; transition: none !important; }
+}
