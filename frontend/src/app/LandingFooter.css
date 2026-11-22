@@ -1,162 +1,38 @@
-/* Footer landing — selalu gelap (seperti footer lama), aksen biru laut. */
+/* Footer landing — isi footer berada di atas latar adegan pesisir
+ * (FooterScene.css): kolom brand & tautan di langit, baris hak cipta di laut
+ * dalam. Warna teks mengikuti langit: navy saat siang, terang saat malam. */
 .lf {
-  --lf-bg: #0b1220;
-  --lf-text: #e2e8f0;
-  --lf-muted: #94a3b8;
-  --lf-line: rgba(148, 163, 184, 0.16);
-  --lf-accent: #38bdf8;
-  --lf-glow: rgba(14, 165, 233, 0.22);
+  --lf-deep: #132440;
+  --lf-text: #1d3557;
+  --lf-strong: #13233d;
+  --lf-muted: #4d5f7b;
+  --lf-line: rgba(29, 53, 87, 0.16);
+  --lf-accent: #c2453e;
+  --lf-chip: rgba(255, 255, 255, 0.55);
+  --lf-red: #d9463e;
+  --lf-sand: #f3c98b;
 
   position: relative;
-  overflow: hidden;
+  isolation: isolate;
   margin-top: auto;
-  padding: 88px 40px 36px;
-  background:
-    radial-gradient(70% 90% at 0% 100%, var(--lf-glow) 0%, transparent 60%),
-    var(--lf-bg);
   color: var(--lf-text);
-  border-top: 2px solid var(--lf-accent);
+  background: var(--lf-deep);
 }
 
 [data-theme="dark"] .lf {
-  --lf-bg: #020617;
-  --lf-glow: rgba(14, 165, 233, 0.16);
+  --lf-deep: #0b1628;
+  --lf-text: #e7edf6;
+  --lf-strong: #ffffff;
+  --lf-muted: #9aabc4;
+  --lf-line: rgba(231, 237, 246, 0.14);
+  --lf-accent: #f3c98b;
+  --lf-chip: rgba(255, 255, 255, 0.05);
 }
 
-/* Laut: garis pasang-surut + lapisan ombak yang mengalir pelan. */
-.lf-sea {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-/* Buih: pita setinggi 150px tepat di atas ombak, memudar ke atas & ke tepi. */
-.lf-foam {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 70px;
-  height: 150px;
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 75%),
-    linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 75%),
-    linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%);
-  mask-composite: intersect;
-}
-.lf-foam svg {
-  position: absolute;
-  left: 0;
-  width: 200%;
-  height: 40px;
-  animation: lf-flow linear infinite;
-}
-.lf-foam path {
-  fill: none;
-  stroke: var(--lf-accent);
-  stroke-width: 1;
-  stroke-linecap: round;
-  stroke-dasharray: 2 10;
-  vector-effect: non-scaling-stroke;
-  opacity: 0.45;
-}
-
-/* Langit malam di sisi kanan: bintang, bulan sabit, mercusuar di atas karang.
-   Berada di belakang lapisan ombak, jadi ombak depan menutupi kaki karang. */
-.lf-sky {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(22%, 380px);
-}
-
-.lf-star {
-  position: absolute;
-  border-radius: 50%;
-  background: #e2e8f0;
-  opacity: 0.45;
-  box-shadow: 0 0 4px rgba(226, 232, 240, 0.5);
-}
-.lf-star.is-twinkling { animation: lf-twinkle 5s ease-in-out infinite; }
-.lf-star.is-twinkling:nth-child(even) { animation-delay: 2.2s; }
-
-.lf-moon {
-  position: absolute;
-  top: 72px;
-  right: 22%;
-  width: 46px;
-  height: 46px;
-  overflow: visible;
-  filter: drop-shadow(0 0 14px rgba(253, 230, 138, 0.22));
-}
-.lf-moon-disc { fill: #f1f5f9; opacity: 0.88; }
-
-/* Mercusuar diletakkan di tengah ruang kosong kanan konten (konten maks.
-   1200px di tengah), jadi tidak menabrak tombol kembali-ke-atas. Disembunyikan
-   bila ruang itu terlalu sempit (lihat media query di bawah). */
-.lf-lighthouse {
-  position: absolute;
-  right: calc((100% - 1200px) / 4 - 40px);
-  bottom: 46px;
-  width: 80px;
-  height: 170px;
-  overflow: visible;
-}
-.lf-lh-rock { fill: #0f1d31; }
-.lf-lh-body {
-  fill: #1a2c46;
-  stroke: rgba(56, 189, 248, 0.28);
-  stroke-width: 0.8;
-}
-.lf-lh-band {
-  fill: none;
-  stroke: rgba(56, 189, 248, 0.3);
-  stroke-width: 1;
-}
-.lf-lh-stripe { fill: rgba(226, 232, 240, 0.1); }
-.lf-lh-glass {
-  fill: rgba(253, 230, 138, 0.12);
-  stroke: rgba(56, 189, 248, 0.28);
-  stroke-width: 0.8;
-}
-.lf-lh-lamp { fill: #fde68a; }
-.lf-lamp-glow { animation: lf-lamp 4.5s ease-in-out infinite; }
-
-[data-theme="dark"] .lf-lh-rock { fill: #0a1526; }
-[data-theme="dark"] .lf-lh-body { fill: #14233a; }
-
-@keyframes lf-twinkle {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 0.12; }
-}
-@keyframes lf-lamp {
-  0%, 100% { opacity: 0.75; }
-  50% { opacity: 1; }
-}
-
-.lf-swell {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 200%;
-  height: 160px;
-  animation: lf-flow linear infinite;
-}
-.lf-swell path { fill: var(--lf-accent); }
-.lf-swell-back { animation-duration: 38s; animation-direction: reverse; }
-.lf-swell-back path { opacity: 0.05; }
-.lf-swell-mid { animation-duration: 26s; }
-.lf-swell-mid path { opacity: 0.07; }
-.lf-swell-front { animation-duration: 18s; animation-direction: reverse; }
-.lf-swell-front path { opacity: 0.09; }
-
-@keyframes lf-flow {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+.lf-body {
+  position: relative;
+  z-index: 1;
+  padding: 56px 40px 0;
 }
 
 .lf-inner {
@@ -166,6 +42,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 48px;
+  /* Ruang untuk cakrawala, kapal & ombak di bawah isi. */
+  margin-bottom: 150px;
 }
 
 /* Brand & kontak */
@@ -173,7 +51,7 @@
   display: inline-flex;
   align-items: center;
   gap: 14px;
-  color: #fff;
+  color: var(--lf-strong);
   text-decoration: none;
   font-size: 1.6rem;
   font-weight: 800;
@@ -228,7 +106,7 @@
   height: 52px;
   border-radius: 50%;
   border: 1px solid var(--lf-line);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--lf-chip);
   color: var(--lf-text);
   text-decoration: none;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.2s ease;
@@ -236,7 +114,6 @@
 .lf-socials a:hover {
   border-color: var(--lf-accent);
   color: var(--lf-accent);
-  background: rgba(56, 189, 248, 0.08);
   transform: translateY(-2px);
 }
 
@@ -268,14 +145,15 @@
   left: 0;
   bottom: -3px;
   width: 100%;
-  height: 1px;
-  background: var(--lf-accent);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--lf-red);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.25s ease;
 }
 .lf-col a:hover {
-  color: #fff;
+  color: var(--lf-strong);
   transform: translateX(3px);
 }
 .lf-col a:hover::after { transform: scaleX(1); }
@@ -284,9 +162,8 @@
 .lf-bottom {
   position: relative;
   max-width: 1200px;
-  margin: 64px auto 0;
-  padding-top: 28px;
-  border-top: 1px solid var(--lf-line);
+  margin: 0 auto;
+  padding: 10px 0 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -294,7 +171,7 @@
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
   letter-spacing: 0.02em;
-  color: var(--lf-muted);
+  color: #b7c6db;
 }
 
 .lf-top {
@@ -305,13 +182,13 @@
   height: 42px;
   border: 0;
   border-radius: 8px;
-  background: var(--lf-accent);
-  color: #04263a;
+  background: var(--lf-sand);
+  color: #132440;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease;
 }
 .lf-top:hover {
-  background: #7dd3fc;
+  background: #f8dcb0;
   transform: translateY(-3px);
 }
 
@@ -321,26 +198,19 @@
   outline-offset: 3px;
 }
 
-@media (max-width: 1419px) {
-  .lf-lighthouse { display: none; }
-}
-
 @media (max-width: 900px) {
-  .lf-sky { display: none; }
   .lf-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lf-brand { grid-column: 1 / -1; }
 }
 
 @media (max-width: 560px) {
-  .lf { padding: 56px 22px 28px; }
+  .lf-body { padding: 40px 22px 0; }
+  .lf-inner { margin-bottom: 196px; }
   .lf-inner { gap: 36px; }
   .lf-col { gap: 14px; }
-  .lf-bottom { margin-top: 44px; font-size: 0.78rem; }
-  .lf-swell { height: 110px; }
-  .lf-foam { bottom: 40px; height: 110px; }
+  .lf-bottom { font-size: 0.78rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lf * { transition: none !important; }
-  .lf-foam svg, .lf-swell, .lf-star, .lf-lamp-glow { animation: none; }
 }

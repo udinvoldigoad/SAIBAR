@@ -1,0 +1,271 @@
+/* ── Latar adegan pesisir di dalam footer ──────────────────────────────
+ * Siang (default) dan malam ([data-theme="dark"]). --lf-deep = warna laut
+ * dalam, sama dengan latar isi footer agar ombak terakhir menyatu. */
+.lf-scene {
+  --sky-top: #f6efe1;
+  --sky-mid: #f8e7d0;
+  --sky-low: #f6d6bb;
+  --cloud-back: #c7d8e2;
+  --cloud-front: #fbeedc;
+  --bird: #1d3557;
+  --horizon: #6f9cc6;
+  --sea-1: #3f74a8;
+  --sea-2: #2c5b8f;
+  --sea-3: #1f4675;
+  --foam: #fbf6ec;
+  --hull: #1d3557;
+  --sail: #f4ede0;
+  --sail-shade: #d3dde6;
+  --lh-white: #f4efe6;
+  --lh-red: #d9463e;
+  --lh-shade: rgba(29, 53, 87, 0.16);
+  --lh-dark: #1d3557;
+  --rock: #1d3557;
+  --rock-hi: rgba(255, 255, 255, 0.12);
+  --glass: #f6e2b0;
+  --lamp: #f6c453;
+  --halo: 0.25;
+
+  /* Geometri dari dasar footer (px): laut dalam s.d. ~66, ombak s.d. ~176,
+     cakrawala 200. Isi footer menyisakan ruang ini (LandingFooter.css). */
+  --horizon-y: 200px;
+
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+  transition: background 0.6s ease;
+}
+
+[data-theme="dark"] .lf-scene {
+  --sky-top: #070f24;
+  --sky-mid: #101d3d;
+  --sky-low: #1d2b52;
+  --cloud-back: #17223f;
+  --cloud-front: #1f2c4e;
+  --bird: #8ea3c4;
+  --horizon: #2a4470;
+  --sea-1: #1e3a64;
+  --sea-2: #172f54;
+  --sea-3: #112645;
+  --foam: #b8c9e0;
+  --hull: #0b1628;
+  --sail: #b9c4d6;
+  --sail-shade: #8c9ab0;
+  --lh-white: #c9cfda;
+  --lh-red: #9e3a37;
+  --lh-shade: rgba(0, 0, 0, 0.25);
+  --lh-dark: #0b1628;
+  --rock: #0a1426;
+  --rock-hi: rgba(148, 163, 184, 0.12);
+  --glass: #ffe7a3;
+  --lamp: #ffe08a;
+  --halo: 1;
+}
+
+/* Langit malam saja: bintang & bulan */
+.lf-stars span {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+[data-theme="dark"] .lf-stars span { opacity: 0.55; }
+[data-theme="dark"] .lf-stars span:nth-child(3n) { animation: lf-twinkle 5s ease-in-out infinite; }
+
+.lf-moon {
+  position: absolute;
+  bottom: calc(var(--horizon-y) + 70px);
+  left: 58%;
+  width: 40px;
+  height: 40px;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  filter: drop-shadow(0 0 12px rgba(255, 232, 170, 0.3));
+}
+.lf-moon-disc { fill: #f1f5f9; }
+[data-theme="dark"] .lf-moon { opacity: 0.9; }
+
+/* Awan: bergeser pelan bolak-balik */
+.lf-clouds {
+  position: absolute;
+  left: -40px;
+  right: -40px;
+  bottom: calc(var(--horizon-y) - 10px);
+  height: 120px;
+  animation: lf-cloud-drift 70s ease-in-out infinite alternate;
+}
+.lf-clouds svg { width: 100%; height: 100%; display: block; }
+.lf-cloud-back { fill: var(--cloud-back); opacity: 0.85; }
+.lf-cloud-front { fill: var(--cloud-front); }
+.lf-cloud-back, .lf-cloud-front { transition: fill 0.6s ease; }
+
+/* Burung */
+.lf-birds {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--horizon-y);
+  height: 90px;
+}
+.lf-bird {
+  position: absolute;
+  overflow: visible;
+  animation: lf-glide ease-in-out infinite alternate;
+}
+.lf-bird path {
+  fill: none;
+  stroke: var(--bird);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.6s ease;
+}
+[data-theme="dark"] .lf-bird { opacity: 0.45; }
+[data-theme="dark"] .lf-bird:nth-child(odd) { display: none; }
+
+/* Laut jauh: pita rata di cakrawala */
+.lf-horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--horizon-y);
+  background: linear-gradient(180deg, var(--horizon) 0%, var(--sea-1) 60%);
+  transition: background 0.6s ease;
+}
+
+/* Kapal layar di cakrawala kiri */
+.lf-ship {
+  position: absolute;
+  left: 30%;
+  bottom: calc(var(--horizon-y) - 66px);
+  width: clamp(72px, 6vw, 96px);
+  aspect-ratio: 130 / 120;
+  overflow: visible;
+}
+.lf-ship-bob {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: lf-bob 5s ease-in-out infinite;
+}
+.lf-ship-rig { fill: none; stroke: var(--hull); stroke-width: 1.6; stroke-linecap: round; }
+.lf-ship-flag { fill: var(--lh-red); }
+.lf-sail-a, .lf-sail-b { fill: var(--sail); }
+.lf-sail-c, .lf-sail-d { fill: var(--sail-shade); }
+.lf-ship-hull { fill: var(--hull); }
+.lf-ship-trim { stroke: var(--lh-red); stroke-width: 2; }
+
+/* Mercusuar di atas karang, kanan */
+.lf-lighthouse {
+  position: absolute;
+  right: 7%;
+  bottom: 112px;
+  height: clamp(150px, 11vw, 180px);
+  aspect-ratio: 160 / 260;
+  overflow: visible;
+}
+.lf-lh-white { fill: var(--lh-white); }
+.lf-lh-red { fill: var(--lh-red); }
+.lf-lh-shade { fill: var(--lh-shade); }
+.lf-lh-window, .lf-lh-dark { fill: var(--lh-dark); }
+.lf-lh-rail, .lf-lh-dark-line { fill: none; stroke: var(--lh-dark); stroke-width: 2; }
+.lf-lh-glass { fill: var(--glass); stroke: var(--lh-dark); stroke-width: 2; }
+.lf-lh-lamp { fill: var(--lamp); }
+.lf-lamp-halo { opacity: var(--halo); transition: opacity 0.6s ease; }
+[data-theme="dark"] .lf-lamp-halo { animation: lf-lamp 4.5s ease-in-out infinite; }
+.lf-lh-rock { fill: var(--rock); }
+.lf-lh-rock-hi { fill: none; stroke: var(--rock-hi); stroke-width: 2; stroke-linecap: round; }
+
+/* Ombak berlapis: tiap lapis lebih gelap & lebih rendah, terakhir = laut dalam */
+.lf-sea {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  animation: lf-flow linear infinite;
+}
+.lf-sea-1 { height: 176px; }
+.lf-sea-2 { height: 150px; }
+.lf-sea-3 { height: 128px; }
+.lf-sea-4 { height: 110px; }
+.lf-sea-1 .lf-sea-body { fill: var(--sea-1); }
+.lf-sea-2 .lf-sea-body { fill: var(--sea-2); }
+.lf-sea-3 .lf-sea-body { fill: var(--sea-3); }
+.lf-sea-4 .lf-sea-body { fill: var(--lf-deep); }
+.lf-sea-body { transition: fill 0.6s ease; }
+/* Buih: pita terang tipis tepat di bawah puncak + garis putih terputus
+   panjang (bukan titik-titik) agar terbaca sebagai pecahan ombak. */
+.lf-sea-cap {
+  fill: none;
+  stroke: var(--foam);
+  stroke-width: 6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.16;
+}
+.lf-sea-foam {
+  fill: none;
+  stroke: var(--foam);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 150 26 40 34 90 22;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+}
+.lf-sea-3 .lf-sea-foam { opacity: 0.6; stroke-width: 2; }
+.lf-sea-4 .lf-sea-foam { opacity: 0.3; stroke-width: 1.5; }
+.lf-sea-4 .lf-sea-cap { opacity: 0.06; }
+[data-theme="dark"] .lf-sea-foam { opacity: 0.38; }
+[data-theme="dark"] .lf-sea-cap { opacity: 0.07; }
+
+@keyframes lf-flow {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes lf-cloud-drift {
+  from { transform: translateX(-20px); }
+  to { transform: translateX(20px); }
+}
+@keyframes lf-glide {
+  from { transform: translate(0, 0); }
+  to { transform: translate(14px, -6px); }
+}
+@keyframes lf-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(2px) rotate(1.5deg); }
+}
+@keyframes lf-twinkle {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.15; }
+}
+@keyframes lf-lamp {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .lf-scene { --horizon-y: 172px; }
+  .lf-ship { left: 8%; width: 70px; }
+  .lf-lighthouse { right: 5%; bottom: 96px; height: 124px; }
+  .lf-moon { left: 44%; width: 28px; height: 28px; }
+  .lf-birds { height: 64px; }
+  .lf-bird:nth-child(n + 6) { display: none; }
+  .lf-sea-1 { height: 152px; }
+  .lf-sea-2 { height: 132px; }
+  .lf-sea-3 { height: 114px; }
+  .lf-sea-4 { height: 100px; }
+  /* Ombak 2× lebih renggang di layar sempit (geser -50% dari 400% tetap
+     = 1440 unit, jadi loop tetap mulus). */
+  .lf-sea { width: 400%; }
+  .lf-sea-4 .lf-sea-foam, .lf-sea-4 .lf-sea-cap { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-scene *, .lf-scene { animation: none !important; transition: none !important; }
+}
