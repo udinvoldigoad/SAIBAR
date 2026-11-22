@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "../../shared/components/AppShell";
+import { riskColors } from "../../shared/constants/risk";
+import "./dashboardKit.css";
 import { api, apiUrl, downloadFile, errorMessage } from "../../shared/api/client";
 import { fetchProvinceSummary, invalidateProvinceSummaryCache } from "../../shared/api/provinceSummaryCache";
 import { ProvinceTrendChart } from "../../shared/components/ProvinceTrendChart";
@@ -104,6 +106,24 @@ function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Pilihan filter bulan: bulan depan s.d. 12 bulan lalu, format "YYYY-MM". */
+function monthOptions(): { value: string; label: string }[] {
+  const now = new Date();
+  return Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + 1 - i, 1);
+    return {
+      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
+    };
+  });
+}
+
+const TREND_STYLE: Record<string, { cls: string; icon: string; label: string }> = {
+  naik: { cls: "up", icon: "trending_up", label: "Naik" },
+  turun: { cls: "down", icon: "trending_down", label: "Turun" },
+  stabil: { cls: "flat", icon: "trending_flat", label: "Stabil" },
+};
+
 export function ProvinceDashboardPage() {
   const toast = useToast();
   const [summary, setSummary] = useState<SummaryData>({
@@ -175,13 +195,6 @@ export function ProvinceDashboardPage() {
     } catch (err: unknown) {
       toast.error(errorMessage(err, "Gagal mengekspor CSV provinsi."));
     }
-  };
-
-  const riskBadgeClass = (riskClass: string) => {
-    if (riskClass === "sangat_tinggi") return "sangat_parah";
-    if (riskClass === "tinggi") return "parah";
-    if (riskClass === "rendah") return "ringan";
-    return riskClass;
   };
 
   const getRegencySummary = () => {
@@ -288,38 +301,25 @@ export function ProvinceDashboardPage() {
   return (
     // Judul tak lagi menyebut "BPBD Provinsi": perannya sudah dihapus saat
     // penyederhanaan peran, dan halaman ini kini menu pantauan milik admin.
-    <AppShell active="province" title="Pantauan Provinsi Lampung">
+    <AppShell active="province" title="Pantauan Provinsi">
       <style>{`
-        /* Filter banner provinsi: kontrol modern seragam + 3 kolom di mobile. */
-        .prov-filter { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-        .prov-control, .prov-reset {
-          height: 42px; border-radius: 10px; border: 1px solid var(--line);
-          background: var(--surface); color: var(--ink);
-          font: inherit; font-size: 13px; font-weight: 500; padding: 0 12px;
-          box-sizing: border-box;
-        }
-        .prov-control:focus, .prov-reset:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
-        input[type="month"].prov-control { min-width: 160px; }
-        input[type="month"].prov-control::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .55; }
-        select.prov-control { min-width: 210px; cursor: pointer; }
-        .prov-reset {
-          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-          border-color: var(--critical); color: var(--critical); background: transparent;
-          font-weight: 600; cursor: pointer; white-space: nowrap; padding: 0 16px;
-        }
-        .prov-reset:hover { background: rgba(220, 38, 38, .08); }
-
-        /* KPI — selaras dengan operator-kpis */
-        .metric-grid.province-kpis .metric-card { min-height: 0; padding: 18px 20px; gap: 6px; }
-        .metric-grid.province-kpis .metric-card span { font-size: 12px; font-weight: 600; }
-        .metric-grid.province-kpis .metric-card strong { font-size: 1.8rem; font-weight: 700; }
-        .metric-grid.province-kpis .metric-card small { font-size: 11px; }
+        /* Toolbar filter */
+        .prov-toolbar { align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 14px 16px; }
+        .prov-field { display: flex; flex-direction: column; gap: 5px; }
+        .prov-field label { color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+        .prov-control { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-sizing: border-box; color: var(--ink); cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600; height: 40px; min-width: 200px; padding: 0 12px; }
+        .prov-control:focus { border-color: var(--ocean-dark); box-shadow: 0 0 0 3px var(--ocean-light); outline: none; }
+        .prov-reset { align-items: center; background: transparent; border: 0; color: var(--ocean-dark); cursor: pointer; display: inline-flex; font: inherit; font-size: 13px; font-weight: 700; gap: 5px; height: 40px; padding: 0 6px; }
+        .prov-reset:hover { text-decoration: underline; }
+        .prov-reset .material-symbols-outlined { font-size: 17px; }
+        .prov-toolbar-note { color: var(--ink-soft); font-size: 12.5px; margin-left: auto; align-self: center; }
+        .prov-sort select, .prov-sort button { height: 38px; }
 
         @media (max-width: 768px) {
-          .prov-filter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; }
-          .prov-control, .prov-reset { width: 100%; min-width: 0 !important; padding: 0 8px; font-size: 12.5px; }
-          .prov-reset-suffix { display: none; }
-          .metric-grid.province-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
+          .prov-toolbar { padding: 12px; }
+          .prov-field { flex: 1 1 100%; }
+          .prov-control { min-width: 0; width: 100%; }
+          .prov-toolbar-note { margin-left: 0; }
         }
       `}</style>
       <motion.div
@@ -328,61 +328,85 @@ export function ProvinceDashboardPage() {
         initial="hidden"
         animate="show"
       >
-        {/* Alert Banner */}
-        <motion.div variants={itemVariants} className="alert" style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "14px", flex: "1 1 300px" }}>
-            <motion.div 
-              animate={{ scale: [1, 1.15, 1] }} 
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-              style={{ flexShrink: 0 }}
-            >
-              <Icon name="campaign" style={{ fontSize: "28px", color: "var(--critical)" }} />
-            </motion.div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--ink)" }}>
-                {isLoading ? "Memuat peringatan risiko..." : `${summary.high_risk_villages} kelurahan berisiko tinggi sedang dipantau`}
-              </div>
-              <div style={{ fontSize: "13px", opacity: 0.9, marginTop: "4px" }}>
-                Ringkasan ini dihitung dari prediksi risiko terbaru dan laporan yang telah tervalidasi di sistem.
-              </div>
-            </div>
+        {/* Header halaman */}
+        <motion.div variants={itemVariants} className="dash-head">
+          <div>
+            <h1>Pantauan Provinsi Lampung</h1>
+            <p>Ringkasan prediksi rob per kabupaten/kota dan kelurahan yang paling terdampak.</p>
           </div>
-          <div className="prov-filter">
-            <input type="month" className="prov-control" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} aria-label="Filter bulan prediksi" />
-            <select className="prov-control" value={selectedRegency} onChange={(event) => setSelectedRegency(event.target.value)} aria-label="Filter kabupaten/kota">
+          {summary.latest_prediction_date && (
+            <span className="dash-refresh">
+              <span className="dash-live-dot" aria-hidden="true" />
+              Prediksi per {new Date(summary.latest_prediction_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          )}
+        </motion.div>
+
+        {/* Toolbar filter */}
+        <motion.div variants={itemVariants} className="prov-toolbar">
+          <div className="prov-field">
+            <label htmlFor="prov-month">Bulan prediksi</label>
+            <select id="prov-month" className="prov-control" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
+              <option value="">Terbaru</option>
+              {monthOptions().map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </div>
+          <div className="prov-field">
+            <label htmlFor="prov-regency">Kabupaten/kota</label>
+            <select id="prov-regency" className="prov-control" value={selectedRegency} onChange={(event) => setSelectedRegency(event.target.value)}>
               <option value="all">Semua kabupaten/kota</option>
               {(summary.available_regencies ?? []).map((regency) => <option key={regency} value={regency}>{regency}</option>)}
             </select>
+          </div>
+          {(selectedMonth || selectedRegency !== "all") && (
             <button type="button" className="prov-reset" onClick={() => { setSelectedMonth(""); setSelectedRegency("all"); }}>
-              <Icon name="restart_alt" style={{ fontSize: 17 }} /> <span>Reset<span className="prov-reset-suffix"> Filter</span></span>
+              <Icon name="restart_alt" /> Atur ulang
             </button>
+          )}
+          <span className="prov-toolbar-note">Semua angka di bawah mengikuti filter ini.</span>
+        </motion.div>
+
+        {/* Strip status */}
+        <motion.div variants={itemVariants} className={`dash-status ${summary.high_risk_villages > 0 ? "busy" : "calm"}`} role="status">
+          <span className="dash-status-icon"><Icon name={summary.high_risk_villages > 0 ? "warning" : "task_alt"} /></span>
+          <div className="dash-status-text">
+            <strong>
+              {isLoading
+                ? "Memuat ringkasan risiko…"
+                : summary.high_risk_villages > 0
+                  ? `${summary.high_risk_villages.toLocaleString("id-ID")} kelurahan berisiko tinggi sedang dipantau`
+                  : "Tidak ada kelurahan berisiko tinggi pada prediksi ini"}
+            </strong>
+            <span>
+              {summary.high_risk_villages > 0
+                ? "Periksa tabel kabupaten/kota di bawah untuk wilayah yang perlu diprioritaskan."
+                : "Dihitung dari prediksi risiko terbaru dan laporan warga yang telah divalidasi."}
+            </span>
           </div>
         </motion.div>
 
         {/* KPI Grid */}
-        <motion.div variants={containerVariants} className="metric-grid province-kpis" style={{ marginBottom: "32px" }}>
+        <motion.div variants={containerVariants} className="dash-kpis">
           {[
-            { title: "Wilayah Pantau Aktif", val: summary.monitored_regencies, sub: "Kabupaten & Kota di Lampung", cls: "" },
-            { title: "Zona Risiko Tinggi", val: summary.high_risk_villages, sub: "Kelurahan kelas Tinggi & Sangat Tinggi", cls: "critical" },
-            { title: "Warga Terdampak Potensial", val: toNumber(summary.risk_population).toLocaleString("id-ID"), sub: summary.population_audit?.status === "bps_verified" ? "BPS terverifikasi" : summary.population_audit?.status === "region_population_available" ? "Berdasarkan data region" : "Data populasi belum lengkap", cls: "medium", customColor: "var(--medium)" },
-            { title: "Laporan Masuk (Bulan Ini)", val: summary.validated_reports_this_month, sub: "Telah divalidasi oleh operator", cls: "success" },
+            { title: "Kabupaten/kota dipantau", val: toNumber(summary.monitored_regencies).toLocaleString("id-ID"), sub: "wilayah pesisir Lampung", icon: "map", color: "var(--ocean-dark)", alert: false },
+            { title: "Kelurahan risiko tinggi", val: toNumber(summary.high_risk_villages).toLocaleString("id-ID"), sub: "kelas Tinggi & Sangat Tinggi", icon: "warning", color: riskColors.tinggi, alert: toNumber(summary.high_risk_villages) > 0 },
+            { title: "Warga terdampak potensial", val: toNumber(summary.risk_population).toLocaleString("id-ID"), sub: summary.population_audit?.status === "bps_verified" ? "data BPS terverifikasi" : summary.population_audit?.status === "region_population_available" ? "berdasarkan data wilayah" : "data populasi belum lengkap", icon: "groups", color: "#d97706", alert: toNumber(summary.risk_population) > 0 },
+            { title: "Laporan tervalidasi", val: toNumber(summary.validated_reports_this_month).toLocaleString("id-ID"), sub: "bulan ini", icon: "verified", color: riskColors.rendah, alert: false },
           ].map((kpi, idx) => (
-            <motion.div
-              key={idx}
-              variants={itemVariants}
-              whileHover={{ y: -6, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
-              className={`metric-card ${kpi.cls}`}
-            >
-              <span style={{ color: kpi.customColor ? "var(--ink-soft)" : undefined }}>{kpi.title}</span>
+            <motion.div key={kpi.title} variants={itemVariants} className="dash-kpi" style={{ ["--kpi-color" as string]: kpi.color }}>
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">{kpi.title}</span>
+                <span className="dash-kpi-icon"><Icon name={kpi.icon} /></span>
+              </div>
               <motion.strong
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 + (idx * 0.1), type: "spring", stiffness: 200 }}
-                style={{ color: kpi.customColor }}
+                className={kpi.alert ? "dash-kpi-value is-alert" : "dash-kpi-value"}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + idx * 0.06 }}
               >
                 {kpi.val}
               </motion.strong>
-              <small style={{ color: kpi.customColor ? "var(--ink-soft)" : undefined }}>{kpi.sub}</small>
+              <span className="dash-kpi-sub">{kpi.sub}</span>
             </motion.div>
           ))}
         </motion.div>
@@ -395,10 +419,10 @@ export function ProvinceDashboardPage() {
               <div>
                 <h2 style={{ margin: 0, fontSize: "1.15rem" }}>Tingkat Risiko per Kabupaten/Kota</h2>
                 <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--ink-soft)" }}>
-                  Ringkasan prediksi terbaru {summary.latest_prediction_date ? `per ${new Date(summary.latest_prediction_date).toLocaleDateString("id-ID")}` : ""}; tren = perubahan jumlah zona tinggi+ dari tanggal prediksi sebelumnya.
+                  Tren = perubahan jumlah kelurahan berisiko tinggi dibanding tanggal prediksi sebelumnya.
                 </p>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className="prov-sort" style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <select value={sortKey} onChange={(event) => setSortKey(event.target.value as typeof sortKey)} style={{ minWidth: 170 }}>
                   <option value="risk">Bahaya tertinggi</option>
                   <option value="probability">Peluang rob</option>
@@ -416,44 +440,49 @@ export function ProvinceDashboardPage() {
               <thead>
                 <tr style={{ background: "var(--surface-soft)", borderBottom: "1px solid var(--line)" }}>
                   <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kabupaten/Kota</th>
-                  <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Status Bahaya</th>
-                  <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Peluang Rob</th>
-                  <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Populasi Risiko</th>
+                  <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kelas risiko</th>
+                  <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Peluang rob tertinggi</th>
+                  <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Populasi berisiko</th>
                   <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Tren</th>
                 </tr>
               </thead>
               <tbody>
-                {regenciesData.map((item, idx) => (
-                  <motion.tr 
+                {regenciesData.map((item, idx) => {
+                  const color = riskColors[item.riskClass] ?? riskColors.rendah;
+                  const probability = Math.max(0, Math.min(100, Math.round(item.maxProbability)));
+                  const trend = TREND_STYLE[item.trend] ?? TREND_STYLE.stabil;
+                  return (
+                  <motion.tr
                     key={item.name}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + (idx * 0.05) }}
-                    
-                    style={{ borderBottom: "1px solid var(--line)" }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 + (idx * 0.04) }}
+                    style={{ borderBottom: "1px solid var(--line)", ["--pill" as string]: color }}
                   >
-                    <td style={{ padding: "16px 24px", fontWeight: 600 }}>
+                    <td style={{ padding: "14px 24px", fontWeight: 600 }}>
                       {item.name}
-                      <div style={{ fontSize: "11px", color: "var(--ink-soft)", fontWeight: 400, marginTop: "4px" }}>Menjangkau {item.villagesCount}</div>
+                      <div style={{ fontSize: "12px", color: "var(--ink-soft)", fontWeight: 400, marginTop: "3px" }}>{item.villagesCount.replace("Kelurahan", "kelurahan")} dipantau</div>
                     </td>
-                    <td style={{ padding: "16px 24px" }}>
-                      <span className={`badge severity-${riskBadgeClass(item.riskClass)}`}>
-                        {riskLabels[item.riskClass] ?? item.riskClass}
+                    <td style={{ padding: "14px 24px" }}>
+                      <span className="dash-pill"><i />{riskLabels[item.riskClass] ?? item.riskClass}</span>
+                    </td>
+                    <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                      <span className="dash-prob">
+                        <span className="dash-prob-bar" aria-hidden="true"><span style={{ width: `${probability}%` }} /></span>
+                        <b>{probability}%</b>
                       </span>
                     </td>
-                    <td style={{ padding: "16px 24px", textAlign: "right", fontFamily: "monospace", fontSize: "14px", fontWeight: 700 }}>
-                      {item.probability}
+                    <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                      <span className={item.riskPopulation > 0 ? "dash-num" : "dash-num dash-muted"}>{item.riskPopulation.toLocaleString("id-ID")}</span>
                     </td>
-                    <td style={{ padding: "16px 24px", textAlign: "right", fontFamily: "monospace", fontSize: "14px", fontWeight: 700 }}>
-                      {item.riskPopulation.toLocaleString("id-ID")}
-                    </td>
-                    <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                      <span className={`badge ${item.trend === "naik" ? "severity-parah" : item.trend === "turun" ? "severity-ringan" : "severity-sedang"}`}>
-                        {item.trend} {item.delta !== 0 ? `(${item.delta > 0 ? "+" : ""}${item.delta})` : ""}
+                    <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                      <span className={`dash-trend ${trend.cls}`} title={item.delta !== 0 ? `${item.delta > 0 ? "+" : ""}${item.delta} kelurahan berisiko tinggi dibanding prediksi sebelumnya` : "Tidak ada perubahan"}>
+                        <Icon name={trend.icon} /> {trend.label}{item.delta !== 0 ? ` ${item.delta > 0 ? "+" : "−"}${Math.abs(item.delta)}` : ""}
                       </span>
                     </td>
                   </motion.tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             </div>
@@ -507,10 +536,11 @@ export function ProvinceDashboardPage() {
             <thead>
               <tr style={{ background: "var(--surface-soft)", borderBottom: "1px solid var(--line)" }}>
                 <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", width: "40px" }}>#</th>
-                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kelurahan Utama</th>
-                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Wilayah Kota</th>
-                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kategori Bahaya</th>
-                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Tinggi Pasang Prediksi (di atas MSL)</th>
+                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kelurahan</th>
+                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kecamatan, kabupaten/kota</th>
+                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)" }}>Kelas risiko</th>
+                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Peluang rob</th>
+                <th style={{ padding: "14px 24px", fontSize: "12px", color: "var(--ink-soft)", textAlign: "right" }}>Puncak pasang</th>
               </tr>
             </thead>
             <tbody>
@@ -530,30 +560,39 @@ export function ProvinceDashboardPage() {
                   regency: p.region?.regency ?? null,
                   population: null,
                 })))
-                .map((p, index) => (
-                <motion.tr 
+                .map((p, index) => {
+                const color = riskColors[p.risk_class] ?? riskColors.rendah;
+                const probability = Math.max(0, Math.min(100, Math.round(toNumber(p.risk_probability))));
+                return (
+                <motion.tr
                   key={p.id}
-                  
-                  style={{ borderBottom: "1px solid var(--line)" }}
+                  style={{ borderBottom: "1px solid var(--line)", ["--pill" as string]: color }}
                 >
-                  <td style={{ padding: "16px 24px", color: "var(--ink-soft)", fontWeight: 700 }}>{index + 1}</td>
-                  <td style={{ padding: "16px 24px", fontWeight: 700 }}>
+                  <td style={{ padding: "14px 24px", color: "var(--ink-soft)", fontWeight: 700 }}>{index + 1}</td>
+                  <td style={{ padding: "14px 24px", fontWeight: 600 }}>
                     {p.village ?? "-"}
-                    <div style={{ fontSize: 11, color: "var(--ink-soft)", fontWeight: 500, marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: "var(--ink-soft)", fontWeight: 400, marginTop: 3 }}>
                       {toNumber(p.population) > 0 ? `${toNumber(p.population).toLocaleString("id-ID")} jiwa` : "Populasi belum tersedia"}
                     </div>
                   </td>
-                  <td style={{ padding: "16px 24px", color: "var(--ink-soft)" }}>{p.district ?? "-"}, {p.regency ?? "-"}</td>
-                  <td style={{ padding: "16px 24px" }}>
-                    <span className={`badge severity-${riskBadgeClass(p.risk_class)}`}>
-                      {riskLabels[p.risk_class] ?? p.risk_class}
+                  <td style={{ padding: "14px 24px", color: "var(--ink-soft)" }}>{p.district ?? "-"}, {p.regency ?? "-"}</td>
+                  <td style={{ padding: "14px 24px" }}>
+                    <span className="dash-pill"><i />{riskLabels[p.risk_class] ?? p.risk_class}</span>
+                  </td>
+                  <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                    <span className="dash-prob">
+                      <span className="dash-prob-bar" aria-hidden="true"><span style={{ width: `${probability}%` }} /></span>
+                      <b>{probability}%</b>
                     </span>
                   </td>
-                  <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: 700 }}>
-                    {p.max_tidal_height ? `${toNumber(p.max_tidal_height).toLocaleString("id-ID", { maximumFractionDigits: 2 })} Meter` : "-"}
+                  <td style={{ padding: "14px 24px", textAlign: "right" }}>
+                    {p.max_tidal_height
+                      ? <span className="dash-num">{toNumber(p.max_tidal_height).toLocaleString("id-ID", { maximumFractionDigits: 2 })} m</span>
+                      : <span className="dash-muted">—</span>}
                   </td>
                 </motion.tr>
-              ))}
+                );
+              })}
               </tbody>
             </table>
             </div>
