@@ -86,8 +86,7 @@
   text-decoration: none;
   white-space: nowrap;
 }
-.hf-link .material-symbols-outlined { font-size: 18px; transition: transform 0.2s ease; }
-.hf-link:hover .material-symbols-outlined { transform: translateX(3px); }
+.hf-link .material-symbols-outlined { font-size: 18px; }
 
 /* ── Ubin harian ─────────────────────────────────────────────────── */
 .hf-days {
@@ -109,13 +108,8 @@
   background: color-mix(in srgb, var(--hf-color) var(--hf-tint), var(--hf-tile-base));
   border: 1px solid color-mix(in srgb, var(--hf-color) 22%, transparent);
   cursor: default;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
   animation: hf-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(0.35s + var(--hf-i) * 0.05s);
-}
-.hf-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--hf-color) 18%, transparent);
 }
 .hf-tile.is-today {
   border-color: var(--hf-color);

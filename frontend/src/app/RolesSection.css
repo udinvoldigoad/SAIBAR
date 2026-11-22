@@ -124,9 +124,7 @@
   text-decoration: none;
   transition: background 0.2s ease;
 }
-.roles-features-links a:hover { background: var(--accent-blue-soft, rgba(37, 99, 235, 0.06)); }
-.roles-features-links li { transition: border-color 0.2s ease, transform 0.2s ease; }
-.roles-features-links li:hover { border-color: var(--accent-blue); transform: translateY(-2px); }
+.roles-features-links li { transition: border-color 0.2s ease; }
 .roles-features-links strong { display: block; font-size: 0.88rem; }
 .roles-features-links small {
   display: block;
@@ -139,9 +137,8 @@
   margin-left: auto;
   font-size: 18px;
   color: var(--ink-muted);
-  transition: transform 0.2s ease, color 0.2s ease;
+  transition: color 160ms ease;
 }
-.roles-features-links a:hover .roles-feature-arrow { transform: translateX(3px); color: var(--accent-blue); }
 
 @media (max-width: 1024px) {
   .roles-wide-grid { display: block; }

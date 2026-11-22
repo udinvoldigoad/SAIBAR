@@ -7,9 +7,11 @@ import { LandingFooter } from "./LandingFooter";
 import { HeroForecast } from "./HeroForecast";
 import { RolesSection } from "./RolesSection";
 import { useTheme } from "../shared/utils/useTheme";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, MotionConfig, useReducedMotion } from "framer-motion";
+import { LandingHeading, scrollToLandingGuide, useLandingReveal } from "./landingMotion";
 import { dashboardHashForRole } from "../shared/constants/roles";
 import { getCurrentUser, isLoggedIn } from "../shared/auth/session";
+import "./landingInteractions.css";
 const faqData = [
   {
     q: "Seberapa akurat prediksi banjir rob SAIBAR?",
@@ -30,6 +32,8 @@ const faqData = [
 ];
 
 export function PortalPage() {
+  const reducedMotion = useReducedMotion();
+  const reveal = useLandingReveal();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -53,6 +57,7 @@ export function PortalPage() {
   const dashboardRoute = currentUser ? dashboardHashForRole(currentUser.role) : "#/login";
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="saibar-landing-root">
       {/* Google Fonts Load */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -174,22 +179,6 @@ export function PortalPage() {
           transition: color 0.2s ease;
           position: relative;
         }
-        .nav-links-wrap a:hover {
-          color: var(--ink-primary);
-        }
-        .nav-links-wrap a::after {
-          content: '';
-          position: absolute;
-          bottom: -4px;
-          left: 0;
-          width: 0;
-          height: 2px;
-          background: var(--accent-blue);
-          transition: width 0.2s ease;
-        }
-        .nav-links-wrap a:hover::after {
-          width: 100%;
-        }
         .header-actions {
           display: flex;
           align-items: center;
@@ -217,10 +206,6 @@ export function PortalPage() {
           text-decoration: none;
           transition: all 0.2s ease;
           box-shadow: 0 4px 12px rgba(18, 19, 20, 0.08);
-        }
-        .btn-nav-primary:hover {
-          background: transparent;
-          color: var(--ink-primary);
         }
 
         /* Cinematic Hero Section */
@@ -292,11 +277,6 @@ export function PortalPage() {
           transition: all 0.2s ease;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         }
-        .btn-hero-primary:hover {
-          background: transparent;
-          color: var(--ink-primary);
-          transform: translateY(-2px);
-        }
         .btn-hero-secondary {
           font-size: 0.95rem;
           font-weight: 600;
@@ -308,10 +288,6 @@ export function PortalPage() {
           text-decoration: none;
           transition: all 0.2s ease;
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-        }
-        .btn-hero-secondary:hover {
-          border-color: var(--ink-primary);
-          transform: translateY(-2px);
         }
 
         /* Abstract Grid / Radial Background Details */
@@ -412,6 +388,13 @@ export function PortalPage() {
           line-height: 1.1;
           margin: 0;
         }
+        .landing-heading-word { display: inline-block; }
+        #panduan { scroll-margin-top: 100px; }
+        .saibar-landing-root a:focus-visible, .saibar-landing-root button:focus-visible { outline: 2px solid var(--ocean-dark); outline-offset: 4px; }
+        @media (prefers-reduced-motion: reduce) {
+          .saibar-landing-root *, .saibar-landing-root *::before, .saibar-landing-root *::after { animation: none !important; transition: none !important; }
+          .saibar-landing-root a:hover { transform: none !important; }
+        }
         .bento-header-wrap p {
           font-size: 0.98rem;
           color: var(--ink-muted);
@@ -435,12 +418,6 @@ export function PortalPage() {
           justify-content: space-between;
           overflow: hidden;
           position: relative;
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .bento-card-el:hover {
-          transform: translateY(-3px);
-          border-color: var(--blue-accent);
-          box-shadow: 0 18px 44px rgba(15, 23, 42, .08);
         }
 
         /* Bento Grid Math Span allocations (Zero-Gap Interlock) */
@@ -454,9 +431,6 @@ export function PortalPage() {
         }
         .bento-card-el.dark-theme h3 { color: var(--ink-primary); }
         .bento-card-el.dark-theme p { color: var(--ink-muted); }
-        .bento-card-el.dark-theme:hover {
-          box-shadow: 0 18px 44px rgba(21, 87, 176, .12);
-        }
 
         /* Card Content Inner details */
         .card-meta-title {
@@ -505,10 +479,6 @@ export function PortalPage() {
           font-weight: 600;
           color: inherit;
           text-decoration: none;
-          transition: transform 0.2s ease;
-        }
-        .card-action-link:hover {
-          transform: translateX(4px);
         }
         .card-action-link span {
           font-size: 1rem;
@@ -594,7 +564,6 @@ export function PortalPage() {
           text-align: center;
           transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
         }
-        .reporting-step:hover { border-color: var(--ocean-border); box-shadow: 0 18px 38px rgba(15, 23, 42, .08); transform: translateY(-4px); }
         .reporting-step-number {
           align-items: center;
           background: var(--ocean-mid);
@@ -672,9 +641,6 @@ export function PortalPage() {
           text-decoration: none;
           z-index: 99;
           transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .mitigasi-trigger:hover {
-          transform: scale(1.1);
         }
         .mitigasi-trigger span {
           font-size: 1.5rem;
@@ -805,48 +771,35 @@ export function PortalPage() {
         <nav className="nav-links-wrap">
           <a href="#/map">Peta Risiko</a>
           <a href="#/awam">Mode Awam</a>
-          <a href="#panduan">Panduan</a>
+          <a href="#panduan" onClick={scrollToLandingGuide}>Panduan</a>
         </nav>
         <div className="header-actions">
           <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
-          <a className="btn-nav-primary" href={userIsLoggedIn ? dashboardRoute : "#/login"}>{userIsLoggedIn ? "Dashboard" : "Login"}</a>
+          <a className="btn-nav-primary landing-button is-primary" href={userIsLoggedIn ? dashboardRoute : "#/login"}>{userIsLoggedIn ? "Dashboard" : "Login"}</a>
         </div>
       </header>
 
       {/* Cinematic Center Hero */}
       <section className="hero-section">
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        >
+        <h1>
           Pantau risiko <span className="highlight">banjir rob</span> di pesisir Lampung, setiap hari.
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-        >
+        </h1>
+        <p>
           SAIBAR memprediksi peluang rob di tiap kelurahan pesisir Provinsi Lampung dan menampung laporan kejadian dari warga secara langsung.
-        </motion.p>
-        <motion.div
-          className="hero-actions"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-        >
-          <a className="btn-hero-primary" href="#/awam">
+        </p>
+        <div className="hero-actions">
+          <a className="btn-hero-primary landing-button is-primary" href="#/awam">
             <Icon name="my_location" /> Cek Risiko di Lokasi Saya
           </a>
-          <a className="btn-hero-secondary" href="#/map">
+          <a className="btn-hero-secondary landing-button is-secondary" href="#/map">
             Buka Peta Risiko
           </a>
-        </motion.div>
+        </div>
         <motion.div
           className="hero-forecast-wrap"
-          initial={{ opacity: 0, y: 24 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
+          transition={{ duration: reducedMotion ? 0 : 0.38, ease: "easeOut" }}
         >
           <HeroForecast />
         </motion.div>
@@ -884,23 +837,14 @@ export function PortalPage() {
 
       {/* Prediksi Probabilitas Rob — grafik sama persis dengan halaman Pantauan Provinsi */}
       <section className="bento-section" style={{ marginTop: '100px', width: '100%' }}>
-        <motion.div
-          className="bento-header-wrap"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2>Pantauan Probabilitas Provinsi</h2>
+        <div className="bento-header-wrap">
+          <LandingHeading text="Pantauan Probabilitas Provinsi" />
           <p>Kondisi prediksi peluang banjir rob 30 hari ke depan di wilayah Provinsi Lampung.</p>
-        </motion.div>
+        </div>
         <div className="bento-container-grid">
           <motion.div
             className="bento-card-el"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            {...reveal()}
             style={{ gridColumn: "1 / -1", width: "100%" }}
           >
             <ProvinceTrendChart />
@@ -910,25 +854,15 @@ export function PortalPage() {
 
       {/* Panduan Section */}
       <section id="panduan" className="guide-section" style={{ maxWidth: '1200px', margin: '100px auto', padding: '0 40px' }}>
-        <motion.div
-          className="bento-header-wrap"
-          style={{ marginBottom: '60px' }}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2>Panduan</h2>
-        </motion.div>
+        <div className="bento-header-wrap" style={{ marginBottom: '60px' }}>
+          <LandingHeading text="Panduan" />
+        </div>
 
-        <motion.div 
+        <div
           className="guide-definition-grid"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
           style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "60px", alignItems: "center", marginBottom: "120px" }}
         >
-          <div className="warning-factor-box">
+          <motion.div className="warning-factor-box" {...reveal()}>
             <div className="warning-factor-label">
               <Icon name="warning" /> Faktor Utama
             </div>
@@ -946,32 +880,28 @@ export function PortalPage() {
                 <Icon name="vertical_align_bottom" /> Penurunan muka tanah
               </li>
             </ul>
-          </div>
+          </motion.div>
           <div>
-            <h2 style={{ fontSize: "3rem", fontWeight: 800, color: "var(--ink-primary)", marginBottom: "24px", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Apa itu <span style={{ color: "var(--ocean-dark)" }}>Banjir Rob?</span></h2>
+            <LandingHeading text="Apa itu Banjir Rob?" accent="Banjir Rob?" style={{ fontSize: "3rem", fontWeight: 800, color: "var(--ink-primary)", marginBottom: "24px", letterSpacing: "-0.03em", lineHeight: 1.1 }} />
             <p style={{ fontSize: "1.15rem", color: "var(--ink-muted)", lineHeight: 1.8, marginBottom: "40px" }}>
               Banjir rob adalah genangan air laut yang meluap ke daratan, sering kali terjadi secara berulang. Di pesisir Lampung, fenomena ini tidak hanya dipicu oleh pasang surut astronomis, tetapi juga diperparah oleh cuaca ekstrem dan aktivitas manusia yang menyebabkan penurunan permukaan tanah.
             </p>
-            <motion.a 
+            <a className="landing-button is-primary"
               href="#/map" 
-              whileHover={{ y: -3, boxShadow: "0 15px 35px rgba(15,23,42,0.3)" }}
-              style={{ background: "var(--ink)", color: "var(--on-ink)", padding: "16px 28px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "12px", boxShadow: "0 10px 25px rgba(15,23,42,0.2)", fontSize: "1rem" }}
+              style={{ padding: "16px 28px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "12px", fontSize: "1rem" }}
             >
               Lihat Peta Risiko <Icon name="arrow_forward" />
-            </motion.a>
+            </a>
           </div>
-        </motion.div>
+        </div>
 
         {/* Feature 2: Alternating Layout Right */}
-        <motion.div 
+        <div
           className="guide-map-grid"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px", alignItems: "center", marginBottom: "100px" }}
         >
           <div style={{ order: 1 }}>
-            <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink)", marginBottom: "20px", letterSpacing: "-0.02em" }}>Cara Membaca Peta Prediksi</h2>
+            <LandingHeading text="Cara Membaca Peta Prediksi" style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink)", marginBottom: "20px", letterSpacing: "-0.02em" }} />
             <p style={{ fontSize: "1.05rem", color: "var(--ink-soft)", lineHeight: 1.7, marginBottom: "32px" }}>
               Sistem Machine Learning kami memproyeksikan probabilitas banjir ke dalam empat kelas warna yang intuitif. Hal ini memudahkan Anda dan pengambil kebijakan untuk memprioritaskan tindakan mitigasi pada area yang paling berisiko.
             </p>
@@ -982,57 +912,51 @@ export function PortalPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><div style={{ width: "12px", height: "12px", borderRadius: "50%", background: "var(--low)" }}></div><strong style={{ minWidth: "120px" }}>Rendah</strong><span style={{ color: "var(--ink-soft)", fontSize: "0.95rem" }}>(&lt;30% Probabilitas)</span></div>
             </div>
           </div>
-          <div className="landing-map-frame" style={{ order: 2 }}>
+          <motion.div className="landing-map-frame" {...reveal()} style={{ order: 2 }}>
             <MapPreview />
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
         {/* Feature 3: Full Width Interactive Style */}
-        <motion.div
+        <div
           className="reporting-cta"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
           style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "60px", marginBottom: "80px", textAlign: "center" }}
         >
-          <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink-primary)", marginBottom: "16px", letterSpacing: "-0.02em" }}>Cara Melaporkan Kejadian</h2>
+          <LandingHeading text="Cara Melaporkan Kejadian" style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink-primary)", marginBottom: "16px", letterSpacing: "-0.02em" }} />
           <p style={{ fontSize: "1.05rem", color: "var(--ink-muted)", lineHeight: 1.7, maxWidth: 700, margin: "0 auto 48px" }}>
             Bantu kami memvalidasi model Machine Learning dengan membagikan kondisi riil di wilayah Anda. Prosesnya sangat mudah dan terintegrasi langsung dengan dashboard BPBD.
           </p>
           <div className="reporting-flow">
-            <div className="reporting-step">
+            <motion.div className="reporting-step" {...reveal()}>
               <div className="reporting-step-number">01</div>
               <div><span className="reporting-step-icon"><Icon name="location_on" /></span><h3>Tentukan Lokasi</h3></div>
               <p>Letakkan pin pada titik kejadian agar wilayah administratif dapat dikenali secara tepat.</p>
-            </div>
-            <div className="reporting-step">
+            </motion.div>
+            <motion.div className="reporting-step" {...reveal(0.06)}>
               <div className="reporting-step-number">02</div>
               <div><span className="reporting-step-icon"><Icon name="waves" /></span><h3>Isi Detail Keparahan</h3></div>
               <p>Catat tinggi genangan, waktu kejadian, serta kondisi yang Anda lihat di lapangan.</p>
-            </div>
-            <div className="reporting-step">
+            </motion.div>
+            <motion.div className="reporting-step" {...reveal(0.12)}>
               <div className="reporting-step-number">03</div>
               <div><span className="reporting-step-icon"><Icon name="add_a_photo" /></span><h3>Unggah & Kirim</h3></div>
               <p>Lampirkan foto pendukung lalu kirim laporan untuk ditinjau oleh operator BPBD.</p>
-            </div>
+            </motion.div>
           </div>
           <div style={{ marginTop: "40px" }}>
-            <a href={!userIsLoggedIn ? "#/login" : currentRole === "warga" ? "#/reports" : dashboardRoute} className="btn solid" style={{ background: "var(--ink)", color: "var(--on-ink)", padding: "14px 32px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            <a href={!userIsLoggedIn ? "#/login" : currentRole === "warga" ? "#/reports" : dashboardRoute} className="landing-button is-primary" style={{ padding: "14px 32px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}>
               Mulai Melapor Sekarang <Icon name="add_circle" />
             </a>
           </div>
-        </motion.div>
+        </div>
 
         {/* Modern FAQ Section */}
-        <motion.div 
+        <div
           className="landing-faq-grid"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
           style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "60px", alignItems: "flex-start", marginBottom: "100px" }}
         >
           <div>
-            <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink-primary)", marginBottom: "16px", letterSpacing: "-0.02em" }}>FAQ</h2>
+            <LandingHeading text="FAQ" style={{ fontSize: "2rem", fontWeight: 800, color: "var(--ink-primary)", marginBottom: "16px", letterSpacing: "-0.02em" }} />
             <p style={{ fontSize: "1.05rem", color: "var(--ink-muted)", lineHeight: 1.7 }}>
               Pertanyaan umum mengenai penggunaan portal SAIBAR dan akurasi model prediksinya.
             </p>
@@ -1041,24 +965,26 @@ export function PortalPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {faqData.map((item, i) => (
               <div key={i} style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: 8, overflow: "hidden" }}>
-                <div 
+                <button type="button" className="landing-faq-toggle" aria-expanded={openFaq === i} aria-controls={`landing-faq-${i}`} id={`landing-faq-question-${i}`}
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "24px", background: openFaq === i ? "var(--faq-active-bg)" : "transparent", transition: "background 0.3s" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", textAlign: "left", border: 0, font: "inherit", cursor: "pointer", padding: "24px" }}
                 >
                   <strong style={{ fontSize: "1.05rem", color: openFaq === i ? "var(--faq-active-ink)" : "var(--ink-primary)" }}>{item.q}</strong>
-                  <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }}>
+                  <motion.span animate={{ rotate: openFaq === i ? 180 : 0 }} transition={{ duration: reducedMotion ? 0 : 0.18 }}>
                     <Icon name="expand_more" style={{ color: openFaq === i ? "var(--faq-active-ink)" : "var(--ink-muted)" }} />
-                  </motion.div>
-                </div>
+                  </motion.span>
+                </button>
                 <AnimatePresence>
                   {openFaq === i && (
                     <motion.div 
-                      initial={{ height: 0, opacity: 0 }} 
+                      id={`landing-faq-${i}`} role="region" aria-labelledby={`landing-faq-question-${i}`}
+                      initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }} 
                       exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
                       style={{ overflow: "hidden" }}
                     >
-                      <div style={{ padding: "0 24px 24px", color: "var(--ink-muted)", lineHeight: 1.7, fontSize: "1rem" }}>
+                      <div style={{ padding: "16px 24px 24px", color: "var(--ink-muted)", lineHeight: 1.7, fontSize: "1rem" }}>
                         {item.a}
                       </div>
                     </motion.div>
@@ -1067,7 +993,7 @@ export function PortalPage() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </section>
 
       <LandingFooter
@@ -1075,6 +1001,7 @@ export function PortalPage() {
         accessLabel={userIsLoggedIn ? "Dashboard" : "Masuk Dashboard"}
       />
     </div>
+    </MotionConfig>
   );
 }
 

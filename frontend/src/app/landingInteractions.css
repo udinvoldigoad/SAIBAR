@@ -1,0 +1,66 @@
+.saibar-landing-root {
+  --landing-link: #0369a1;
+  --landing-link-hover: #075985;
+  --landing-solid-hover: #2b3b52;
+  --landing-hover-duration: 160ms;
+}
+[data-theme="dark"] .saibar-landing-root {
+  --landing-link: #38bdf8;
+  --landing-link-hover: #7dd3fc;
+  --landing-solid-hover: #d4d4d4;
+}
+
+.saibar-landing-root :is(.landing-button, .roles-features-links a, .landing-faq-toggle, .lf-socials a, .lf-top, .theme-toggle) {
+  transition: background-color var(--landing-hover-duration) ease, border-color var(--landing-hover-duration) ease, color var(--landing-hover-duration) ease, box-shadow var(--landing-hover-duration) ease;
+}
+.saibar-landing-root .landing-button.is-primary {
+  background: var(--ink-primary);
+  border: 1px solid var(--ink-primary);
+  color: var(--on-ink);
+}
+.saibar-landing-root .landing-button.is-secondary {
+  background: var(--brand-bg);
+  border: 1px solid var(--border-color);
+  color: var(--ink-primary);
+}
+.saibar-landing-root .landing-faq-toggle { background: transparent; }
+.saibar-landing-root .landing-faq-toggle[aria-expanded="true"] { background: var(--faq-active-bg); }
+
+.saibar-landing-root :is(.nav-links-wrap a, .card-action-link, .hf-link, .lf-col a, .lf-contact a, .province-trend-link) {
+  --trend-link-color: var(--landing-link);
+  color: var(--landing-link);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  transition: color var(--landing-hover-duration) ease, text-decoration-color var(--landing-hover-duration) ease;
+}
+.saibar-landing-root .nav-links-wrap a { color: var(--ink-muted); }
+.saibar-landing-root :is(.lf-col a, .lf-contact a) { color: var(--lf-text); }
+.saibar-landing-root .theme-toggle:active { transform: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .saibar-landing-root .landing-button.is-primary:hover {
+    background: var(--landing-solid-hover);
+    border-color: var(--landing-solid-hover);
+  }
+  .saibar-landing-root .landing-button.is-secondary:hover,
+  .saibar-landing-root .roles-features-links a:hover {
+    background: var(--surface-soft);
+    border-color: var(--landing-link);
+  }
+  .saibar-landing-root .roles-features-links li:has(a:hover) { border-color: var(--landing-link); }
+  .saibar-landing-root .roles-features-links a:hover .roles-feature-arrow { color: var(--landing-link); }
+  .saibar-landing-root .landing-faq-toggle:hover { background: var(--surface-muted); --faq-active-ink: var(--landing-link-hover); }
+  .saibar-landing-root :is(.nav-links-wrap a, .card-action-link, .hf-link, .lf-col a, .lf-contact a, .province-trend-link):hover {
+    --trend-link-color: var(--landing-link-hover);
+    color: var(--landing-link-hover);
+    text-decoration-color: currentColor;
+  }
+  .saibar-landing-root .lf-socials a:hover { background: var(--lf-chip); border-color: var(--landing-link); color: var(--landing-link); }
+  .saibar-landing-root .lf-top:hover { background: #f8dcb0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saibar-landing-root a, .saibar-landing-root button { transition: none; }
+}

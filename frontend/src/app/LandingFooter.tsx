@@ -6,6 +6,7 @@
  */
 import { Icon } from "../shared/components/Icon";
 import { FooterScene } from "./FooterScene";
+import { scrollToLandingGuide } from "./landingMotion";
 import "./LandingFooter.css";
 
 interface LandingFooterProps {
@@ -18,7 +19,7 @@ const PHONE_DISPLAY = "(0721) 123456";
 const PHONE_HREF = "tel:+62721123456";
 
 export function LandingFooter({ accessHref, accessLabel }: LandingFooterProps) {
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 
   return (
     <footer className="lf">
@@ -59,7 +60,7 @@ export function LandingFooter({ accessHref, accessLabel }: LandingFooterProps) {
             <a href="#/">Beranda</a>
             <a href="#/map">Peta Risiko</a>
             <a href="#/awam">Mode Awam</a>
-            <a href="#panduan">Panduan</a>
+            <a href="#panduan" onClick={scrollToLandingGuide}>Panduan</a>
           </nav>
 
           <nav className="lf-col" aria-label="Akses">

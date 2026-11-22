@@ -284,11 +284,11 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
       {showLink && (
         <div style={{ marginTop: "16px", textAlign: "right" }}>
           <a
+            className="province-trend-link"
             href="#/province"
             style={{
               display: "inline-flex", alignItems: "center", gap: "8px",
-              fontSize: "0.92rem", fontWeight: 600, color: "var(--accent-blue, #2563eb)",
-              textDecoration: "none", transition: "transform 0.2s",
+              fontSize: "0.92rem", fontWeight: 600, color: "var(--trend-link-color, var(--accent-blue, #2563eb))",
             }}
           >
             Lihat Pantauan Lengkap <Icon name="arrow_forward" style={{ fontSize: "18px" }} />

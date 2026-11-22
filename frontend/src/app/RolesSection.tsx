@@ -5,6 +5,7 @@
  * Memakai kelas bento global yang didefinisikan di PortalPage.
  */
 import { motion } from "framer-motion";
+import { LandingHeading, useLandingReveal } from "./landingMotion";
 import { Icon } from "../shared/components/Icon";
 import { MapPreview } from "../shared/components/MapPreview";
 import "./RolesSection.css";
@@ -37,18 +38,12 @@ function isoDate(offsetDays: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const reveal = (delay = 0) => ({
-  initial: { opacity: 0, y: 30 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-50px" },
-  transition: { duration: 0.6, delay, ease: "easeOut" as const },
-});
-
 export function RolesSection({ researchHref, adminHref, adminLabel }: RolesSectionProps) {
+  const reveal = useLandingReveal();
   return (
     <section className="bento-section roles-section">
       <div className="bento-header-wrap">
-        <h2>Satu sistem, tiga peran</h2>
+        <LandingHeading text="Satu sistem, tiga peran" />
         <p>
           Warga, peneliti, dan pengelola memakai data prediksi yang sama — masing-masing dengan akses sesuai
           kebutuhannya.
