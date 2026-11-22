@@ -96,7 +96,7 @@ export function OnboardingPage() {
             
             .citizen-guide-grid { display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:stretch; margin-bottom:110px; }
             .citizen-warning-box { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 24px; display:flex; flex-direction:column; justify-content:center; padding:32px; transition: transform 0.3s ease; }
-            :root[data-theme="dark"] .citizen-warning-box { background: rgba(30, 41, 59, 0.6); border-color: rgba(255,255,255,0.05); }
+            :root[data-theme="dark"] .citizen-warning-box { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
             .citizen-warning-box:hover { transform: translateY(-5px); }
             .citizen-warning-label { align-items:center; background:var(--amber-bg); border:1px solid var(--amber-border); border-radius:12px; color:var(--amber); display:inline-flex; font-size:13px; font-weight:800; gap:8px; letter-spacing:.08em; margin-bottom:20px; padding:8px 14px; text-transform:uppercase; }
             .citizen-warning-list { display:grid; list-style:none; margin:0; padding:0; }
@@ -104,27 +104,27 @@ export function OnboardingPage() {
             .citizen-warning-list li:last-child { border:0; }
             .citizen-warning-list .material-symbols-outlined, .citizen-warning-label .material-symbols-outlined { color:var(--amber); font-size:22px; }
             .citizen-map-frame { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border:1px solid rgba(255, 255, 255, 0.5); border-radius:24px; min-height:400px; overflow:hidden; padding:12px; }
-            :root[data-theme="dark"] .citizen-map-frame { background: rgba(30, 41, 59, 0.6); border-color: rgba(255,255,255,0.05); }
+            :root[data-theme="dark"] .citizen-map-frame { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
             .citizen-report-flow { display:grid; gap:28px; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0 auto; max-width:940px; }
             .citizen-report-step { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border:1px solid rgba(255, 255, 255, 0.6); border-radius:24px; min-height:260px; padding:32px 26px; text-align:center; transition: all 0.3s ease; }
-            :root[data-theme="dark"] .citizen-report-step { background: rgba(30, 41, 59, 0.6); border-color: rgba(255,255,255,0.05); }
+            :root[data-theme="dark"] .citizen-report-step { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
             .citizen-report-step:hover { transform: translateY(-8px); }
             .citizen-step-number { align-items:center; background: var(--ocean-mid); color:var(--ink-inverse); border-radius:50%; display:flex; font-size:16px; font-weight:800; height:54px; justify-content:center; margin:0 auto 28px; width:54px; }
             .citizen-step-icon { align-items:center; background:var(--ocean-light); border-radius:12px; color:var(--ocean-mid); display:flex; height:42px; justify-content:center; margin:0 auto 16px; width:42px; }
             .citizen-report-step h3 { font-size:1.15rem; font-weight: 700; color: var(--ink); margin:0 0 12px; }
             .citizen-report-step p { font-size:0.95rem; color: var(--ink-soft); line-height:1.6; margin:0 auto; max-width:28ch; }
             .citizen-feature-box { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border:1px solid rgba(255, 255, 255, 0.6); border-radius:32px; padding:70px; margin-bottom:80px; text-align:center; }
-            :root[data-theme="dark"] .citizen-feature-box { background: rgba(30, 41, 59, 0.5); border-color: rgba(255,255,255,0.05); }
+            :root[data-theme="dark"] .citizen-feature-box { background: rgba(var(--surface-rgb), 0.5); border-color: rgba(255,255,255,0.05); }
             .citizen-hero-metrics .panel { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 16px; transition: transform 0.2s ease; }
-            :root[data-theme="dark"] .citizen-hero-metrics .panel { background: rgba(30, 41, 59, 0.6); border-color: rgba(255,255,255,0.05); }
+            :root[data-theme="dark"] .citizen-hero-metrics .panel { background: rgba(var(--surface-rgb), 0.6); border-color: rgba(255,255,255,0.05); }
             .citizen-hero-metrics .panel:hover { transform: scale(1.03); background: rgba(255, 255, 255, 0.85); }
-            :root[data-theme="dark"] .citizen-hero-metrics .panel:hover { background: rgba(30, 41, 59, 0.9); }
+            :root[data-theme="dark"] .citizen-hero-metrics .panel:hover { background: rgba(var(--surface-rgb), 0.9); }
             .onboarding-kicker { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--ink); display: inline-flex; margin: 0 auto 24px; padding: 8px 17px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
             .onboarding-kicker-title { font-size: .86rem; font-weight: 700; letter-spacing: 0; }
             .faq-item { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 16px; overflow: hidden; margin-bottom: 16px; transition: all 0.3s ease; }
-            :root[data-theme="dark"] .faq-item { background: rgba(30, 41, 59, 0.5); border-color: rgba(255,255,255,0.05); }
+            :root[data-theme="dark"] .faq-item { background: rgba(var(--surface-rgb), 0.5); border-color: rgba(255,255,255,0.05); }
             .faq-item:hover { background: rgba(255, 255, 255, 0.85); border-color: rgba(255, 255, 255, 0.8); }
-            :root[data-theme="dark"] .faq-item:hover { background: rgba(30, 41, 59, 0.8); border-color: rgba(255,255,255,0.1); }
+            :root[data-theme="dark"] .faq-item:hover { background: rgba(var(--surface-rgb), 0.8); border-color: rgba(255,255,255,0.1); }
             .dark-text { color: var(--ink); }
             .dark-text-soft { color: var(--ink-soft); }
             .faq-q-text { font-size: 1.1rem; font-weight: 700; color: var(--ink); }

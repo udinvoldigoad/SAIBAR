@@ -22,9 +22,9 @@
 }
 
 [data-theme="dark"] .hf {
-  --hf-panel: rgba(15, 23, 42, 0.72);
+  --hf-panel: rgba(var(--surface-rgb), 0.72);
   --hf-border: rgba(255, 255, 255, 0.08);
-  --hf-tile-base: #0f172a;
+  --hf-tile-base: var(--bg);
   --hf-tint: 16%;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }

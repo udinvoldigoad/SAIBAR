@@ -3,7 +3,12 @@
   --surface: #ffffff;
   --surface-soft: #f1f5f9;
   --surface-muted: #e2e8f0;
+  --bg-rgb: 248, 250, 252;
+  --surface-rgb: 255, 255, 255;
+  --sidebar-surface: var(--surface);
+  --topbar-surface: var(--surface);
   --ink: #0f172a; /* Slate 900 */
+  --on-ink: #ffffff; /* Teks pada tombol berlatar --ink. */
   --ink-soft: #475569; /* Slate 600 */
   --line: #e2e8f0; /* Soft border */
   --accent: #6366f1; /* Vibrant Indigo */
@@ -26,15 +31,22 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #0f172a; /* Slate 900 */
-  --surface: #1e293b; /* Slate 800 */
-  --surface-soft: #334155; /* Slate 700 */
-  --surface-muted: #475569; /* Slate 600 */
-  --ink: #f8fafc; /* Slate 50 */
-  --ink-soft: #94a3b8; /* Slate 400 */
-  --line: #334155; /* Slate 700 */
+  /* Hitam arang netral: kanvas, kartu, dan keadaan hover dibedakan per lapisan. */
+  --bg: #101010;
+  --surface: #181818;
+  --surface-soft: #222222;
+  --surface-muted: #2c2c2c;
+  --bg-rgb: 16, 16, 16;
+  --surface-rgb: 24, 24, 24;
+  --sidebar-surface: #0d0d0d;
+  --topbar-surface: var(--bg);
+  --ink: #f5f5f5;
+  --on-ink: #101010;
+  --ink-soft: #a3a3a3;
+  --line: #2e2e2e;
+  color-scheme: dark;
   --accent-soft: rgba(99, 102, 241, 0.15);
-  --scrim: rgba(15, 23, 42, 0.65); /* Slate 900 transparan */
+  --scrim: rgba(16, 16, 16, 0.7);
   --ocean-dark: #38bdf8;
   --ocean-mid: #0284c7;
   --ocean-light: rgba(56, 189, 248, 0.15);
@@ -53,11 +65,26 @@
   --red-badge-bg: #450a0a;
   --orange-badge: #9a3412;
   --orange-badge-bg: #431407;
-  --ink-inverse: #020617;
-  --footer-bg: #000000;
-  --footer-text: #cbd5e1;
-  --footer-muted: #64748b;
-  --footer-line: #1e293b;
+  --ink-inverse: #ffffff;
+  --footer-bg: #0d0d0d;
+  --footer-text: #d4d4d4;
+  --footer-muted: #a3a3a3;
+  --footer-line: var(--line);
+  /* Alias komponen lama ikut tema, termasuk breadcrumb dan garis tabel. */
+  --bg0: var(--bg);
+  --bg1: var(--surface);
+  --bg2: var(--surface-soft);
+  --bd: var(--line);
+  --tx0: var(--ink);
+  --tx1: var(--ink);
+  --tx2: var(--ink-soft);
+  --tx3: #8a8a8a;
+  --brand: var(--ocean-mid);
+  --blue: var(--ocean-dark);
+  --blue-bg: var(--ocean-light);
+  --blue-bd: var(--ocean-border);
+  --red-bg: rgba(239, 68, 68, 0.12);
+  --green-bg: rgba(16, 185, 129, 0.12);
 }
 
 :root {
@@ -108,7 +135,7 @@
     color: var(--ink-soft);
   }
   :root[data-theme="dark"] .map-toolbar {
-    background: rgba(15, 23, 42, 0.92);
+    background: rgba(var(--surface-rgb), 0.92);
     border-color: var(--line);
   }
   /* Gambar laut di kaki sidebar (di belakang konten), memudar ke atas dengan
@@ -136,8 +163,12 @@
     backdrop-filter: blur(4px);
   }
   :root[data-theme="dark"] .sidebar-user-card {
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(var(--surface-rgb), 0.72);
     border-color: rgba(255, 255, 255, 0.12);
+  }
+  :root[data-theme="dark"] .sidebar::after {
+    opacity: 0.18;
+    filter: grayscale(0.35);
   }
 
 :root[data-theme="dark"] .report-row,
@@ -472,7 +503,7 @@ textarea { min-height: 100px; resize: vertical; }
 }
 .app-shell.sidebar-collapsed { --sidebar-width: 76px; }
 .sidebar {
-  background: var(--surface);
+  background: var(--sidebar-surface);
   border-right: 1px solid var(--line);
   color: var(--ink);
   height: 100dvh;
@@ -831,7 +862,7 @@ textarea { min-height: 100px; resize: vertical; }
 .map-toolbar span { color: var(--ink-soft); font-size: 0.88rem; }
 .map-toolbar strong { font-size: 0.9rem; }
 .legend {
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(var(--surface-rgb), 0.94);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   bottom: 16px;
@@ -1758,7 +1789,7 @@ code {
 
 .app-topbar {
   height: 52px;
-  background: var(--surface);
+  background: var(--topbar-surface);
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -2058,7 +2089,7 @@ select:focus {
 }
 
 :root[data-theme="dark"] .mesh-gradient {
-  background-color: #0B0E14; /* Deep elite dark mode */
+  background-color: var(--bg);
 }
 
 /* Gapless Bento Grid */
@@ -2182,8 +2213,8 @@ select:focus {
   }
 
   :root[data-theme="dark"] .mobile-bottom-pill {
-    background: rgb(15, 23, 42);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: var(--sidebar-surface);
+    border-color: var(--line);
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   }
 

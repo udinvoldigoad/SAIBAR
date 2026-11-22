@@ -70,6 +70,8 @@ export function PortalPage() {
           --border-color: var(--line);
           --accent-blue: var(--blue-accent);
           --accent-blue-soft: #eff6ff;
+          --faq-active-ink: var(--accent-blue);
+          --faq-active-bg: var(--accent-blue-soft);
           --bg-header: rgba(246, 249, 252, 0.88);
           --brand-bg: var(--surface);
           --bg-overlay-start: rgba(246, 249, 252, 0.7);
@@ -86,11 +88,13 @@ export function PortalPage() {
           --border-color: var(--line);
           --accent-blue: var(--blue-accent);
           --accent-blue-soft: var(--blue-soft);
-          --bg-header: rgba(2, 6, 23, 0.88);
+          --faq-active-ink: var(--ocean-dark);
+          --faq-active-bg: var(--surface-soft);
+          --bg-header: rgba(var(--bg-rgb), 0.88);
           --brand-bg: var(--surface);
-          --bg-overlay-start: rgba(2, 6, 23, 0.85);
-          --bg-overlay-end: rgba(2, 6, 23, 1);
-          --bg-marquee: rgba(15, 23, 42, 0.62);
+          --bg-overlay-start: rgba(var(--bg-rgb), 0.85);
+          --bg-overlay-end: var(--bg);
+          --bg-marquee: rgba(var(--surface-rgb), 0.62);
         }
 
         /* Component-Specific Dark Mode Overrides */
@@ -205,7 +209,7 @@ export function PortalPage() {
         .btn-nav-primary {
           font-size: 0.92rem;
           font-weight: 600;
-          color: var(--ink-inverse);
+          color: var(--on-ink);
           background: var(--ink-primary);
           border: 1px solid var(--ink-primary);
           border-radius: 10px;
@@ -279,7 +283,7 @@ export function PortalPage() {
           gap: 8px;
           font-size: 0.95rem;
           font-weight: 600;
-          color: var(--ink-inverse);
+          color: var(--on-ink);
           background: var(--ink-primary);
           border: 1px solid var(--ink-primary);
           border-radius: 10px;
@@ -660,7 +664,7 @@ export function PortalPage() {
           height: 56px;
           border-radius: 50%;
           background: var(--ink-primary);
-          color: #fff;
+          color: var(--on-ink);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -951,7 +955,7 @@ export function PortalPage() {
             <motion.a 
               href="#/map" 
               whileHover={{ y: -3, boxShadow: "0 15px 35px rgba(15,23,42,0.3)" }}
-              style={{ background: "var(--ink)", color: "var(--ink-inverse)", padding: "16px 28px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "12px", boxShadow: "0 10px 25px rgba(15,23,42,0.2)", fontSize: "1rem" }}
+              style={{ background: "var(--ink)", color: "var(--on-ink)", padding: "16px 28px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "12px", boxShadow: "0 10px 25px rgba(15,23,42,0.2)", fontSize: "1rem" }}
             >
               Lihat Peta Risiko <Icon name="arrow_forward" />
             </motion.a>
@@ -1013,7 +1017,7 @@ export function PortalPage() {
             </div>
           </div>
           <div style={{ marginTop: "40px" }}>
-            <a href={!userIsLoggedIn ? "#/login" : currentRole === "warga" ? "#/reports" : dashboardRoute} className="btn solid" style={{ background: "var(--ink)", color: "var(--ink-inverse)", padding: "14px 32px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            <a href={!userIsLoggedIn ? "#/login" : currentRole === "warga" ? "#/reports" : dashboardRoute} className="btn solid" style={{ background: "var(--ink)", color: "var(--on-ink)", padding: "14px 32px", borderRadius: "10px", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}>
               Mulai Melapor Sekarang <Icon name="add_circle" />
             </a>
           </div>
@@ -1039,11 +1043,11 @@ export function PortalPage() {
               <div key={i} style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: 8, overflow: "hidden" }}>
                 <div 
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "24px", background: openFaq === i ? "var(--accent-blue-soft)" : "transparent", transition: "background 0.3s" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "24px", background: openFaq === i ? "var(--faq-active-bg)" : "transparent", transition: "background 0.3s" }}
                 >
-                  <strong style={{ fontSize: "1.05rem", color: openFaq === i ? "var(--accent-blue)" : "var(--ink-primary)" }}>{item.q}</strong>
+                  <strong style={{ fontSize: "1.05rem", color: openFaq === i ? "var(--faq-active-ink)" : "var(--ink-primary)" }}>{item.q}</strong>
                   <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }}>
-                    <Icon name="expand_more" style={{ color: openFaq === i ? "var(--accent-blue)" : "var(--ink-muted)" }} />
+                    <Icon name="expand_more" style={{ color: openFaq === i ? "var(--faq-active-ink)" : "var(--ink-muted)" }} />
                   </motion.div>
                 </div>
                 <AnimatePresence>
