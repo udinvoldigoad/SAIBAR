@@ -6,6 +6,27 @@ import { clearSession, setSession, type SessionUser } from "../../shared/auth/se
 
 type ExchangeResponse = { access_token: string; user: SessionUser };
 
+/**
+ * Kode tukar OAuth sekali pakai. React StrictMode (development) menjalankan
+ * efek dua kali: dulu permintaan kedua memakai kode yang sudah hangus, gagal
+ * (`invalid_oauth_code`), lalu clearSession() menghapus sesi yang BARU SAJA
+ * berhasil dibuat — login Google di lokal selalu terlempar ke halaman login.
+ * Satu kode = satu permintaan; pemanggilan berikutnya memakai promise yang sama.
+ */
+const exchanges = new Map<string, Promise<ExchangeResponse>>();
+
+function exchangeCode(code: string): Promise<ExchangeResponse> {
+  let pending = exchanges.get(code);
+  if (!pending) {
+    pending = api<ExchangeResponse>("/auth/google/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    exchanges.set(code, pending);
+  }
+  return pending;
+}
+
 export function OAuthCallbackPage() {
   useEffect(() => {
     // Backend redirects to /#/oauth-callback?code=<sekali-pakai>.
@@ -23,10 +44,7 @@ export function OAuthCallbackPage() {
       return;
     }
 
-    api<ExchangeResponse>("/auth/google/exchange", {
-      method: "POST",
-      body: JSON.stringify({ code }),
-    })
+    exchangeCode(code)
       .then((res) => {
         setSession(res.user);
         window.location.hash = dashboardHashForRole(res.user.role);
