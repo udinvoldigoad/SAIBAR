@@ -149,9 +149,17 @@
   /* Header section ini tetap tampil di HP (aturan lama menyembunyikan header
      bento untuk merapatkan area di bawah hero). */
   .roles-section > .bento-header-wrap { display: flex !important; }
-}
 
-@media (max-width: 420px) {
-  .roles-features { grid-template-columns: 1fr; }
-  .roles-code pre { font-size: 0.72rem; }
+  /* Ubin satu kolom: ikon | judul + keterangan satu baris | panah — dulu dua
+     kolom sempit membuat "Cek Lokasi Saya" patah jadi 3 baris. */
+  .roles-features { grid-template-columns: 1fr; gap: 8px; margin-bottom: 16px; }
+  .roles-features li { padding: 11px 12px; }
+  .roles-features-links a { padding: 11px 12px; }
+  .roles-features-links small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .roles-wide-grid > .card-preview-container { margin-bottom: 14px; }
+
+  /* Contoh API cukup satu permintaan; chip endpoint dihapus di HP. */
+  .roles-code { margin-bottom: 16px; }
+  .roles-code pre { font-size: 0.74rem; padding: 12px; }
+  .roles-code-endpoints { display: none; }
 }

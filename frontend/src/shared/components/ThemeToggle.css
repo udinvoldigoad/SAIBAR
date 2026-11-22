@@ -225,5 +225,13 @@
   animation: none;
   mix-blend-mode: normal;
 }
+/* Lihat useTheme: transisi CSS dimatikan selama tirai berjalan, kecuali
+   toggle tema itu sendiri (animasi matahari↔bulan tetap). */
+html.theme-switching *:not(.theme-toggle, .theme-toggle *),
+html.theme-switching *:not(.theme-toggle, .theme-toggle *)::before,
+html.theme-switching *:not(.theme-toggle, .theme-toggle *)::after {
+  transition: none !important;
+}
+
 ::view-transition-old(root) { z-index: 1; }
 ::view-transition-new(root) { z-index: 2; }
