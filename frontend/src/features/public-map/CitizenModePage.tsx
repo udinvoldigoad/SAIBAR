@@ -6,13 +6,16 @@ import { useToast } from "../../shared/components/Toast";
 import { getCurrentUser } from "../../shared/auth/session";
 import { motion } from "framer-motion";
 import type { RiskClass } from "../../shared/types/domain";
+import { riskColors } from "../../shared/constants/risk";
 import {
   CITIZEN_SHARED_STYLES,
   CitizenActionCard,
   ErrorBanner,
-  ForecastDayColumn,
+  ForecastTiles,
   GuidanceText,
+  HeroWaves,
   ModelInfoPanel,
+  NearbyReportsEmpty,
   PredictionNotice,
   ReportSeverityBadge,
   ReportValidatedBadge,
@@ -20,6 +23,7 @@ import {
   StatusBadge,
   containerVariants,
   itemVariants,
+  recommendationsFor,
   reportRegionLabel,
   reportTimeLabel,
   type ActionCard,
@@ -84,32 +88,19 @@ const riskLabels: Record<RiskClass, string> = {
 };
 
 const getCardStyle = (riskClass?: RiskClass) => {
+  // Mengikuti palet kelas risiko di peta & landing (Rendah = hijau, bukan
+  // biru seperti dulu). Tanpa data prediksi → netral (slate).
   switch (riskClass) {
     case "sangat_tinggi":
-      return {
-        background: "linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)",
-        boxShadow: "0 24px 48px rgba(220, 38, 38, 0.3)",
-        icon: "warning"
-      };
+      return { background: "linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%)", boxShadow: "0 24px 48px rgba(220, 38, 38, 0.3)" };
     case "tinggi":
-      return {
-        background: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
-        boxShadow: "0 24px 48px rgba(249, 115, 22, 0.3)",
-        icon: "warning"
-      };
+      return { background: "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)", boxShadow: "0 24px 48px rgba(234, 88, 12, 0.28)" };
     case "sedang":
-      return {
-        background: "linear-gradient(135deg, #eab308 0%, #a16207 100%)",
-        boxShadow: "0 24px 48px rgba(234, 179, 8, 0.3)",
-        icon: "warning"
-      };
+      return { background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)", boxShadow: "0 24px 48px rgba(217, 119, 6, 0.28)" };
     case "rendah":
+      return { background: "linear-gradient(135deg, #16a34a 0%, #0f766e 100%)", boxShadow: "0 24px 48px rgba(22, 163, 74, 0.25)" };
     default:
-      return {
-        background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-        boxShadow: "0 24px 48px rgba(37, 99, 235, 0.25)",
-        icon: "info"
-      };
+      return { background: "linear-gradient(135deg, #334155 0%, #1e293b 100%)", boxShadow: "0 24px 48px rgba(15, 23, 42, 0.25)" };
   }
 };
 
@@ -242,6 +233,34 @@ const WILAYAH_PICKER_STYLES = `
   .wilayah-empty { color: var(--ink-soft); font-size: 0.86rem; padding: 16px 14px; text-align: center; }
 `;
 
+/** Tiga metrik di kartu status desktop: label pendek + nilai + catatan. */
+function statusMetrics(data: ModeAwamData | undefined, dataLoaded: boolean, risk: string) {
+  const pending = dataLoaded ? "Tidak tersedia" : "Memuat...";
+  const reports = data?.nearby_reports.length ?? 0;
+  return [
+    {
+      label: "Peluang rob",
+      value: data?.risk_probability != null ? `${Math.round(Number(data.risk_probability))}` : "-",
+      unit: data?.risk_probability != null ? "%" : "",
+      note: data ? (data.risk_probability != null ? `Kelas ${risk}` : "Prediksi belum tersedia") : pending,
+    },
+    {
+      label: "Puncak pasang",
+      value: data?.max_tidal_height != null ? meters.format(data.max_tidal_height) : "-",
+      unit: data?.max_tidal_height != null ? "m" : "",
+      note: data?.max_tidal_height != null
+        ? `di atas rata-rata laut${data.peak_time ? ` · ${data.peak_time} WIB` : ""}`
+        : (data ? "Tidak tersedia" : pending),
+    },
+    {
+      label: "Laporan sekitar",
+      value: data ? String(reports) : "-",
+      unit: "",
+      note: data ? (reports === 0 ? "Belum ada laporan" : "laporan tervalidasi") : pending,
+    },
+  ];
+}
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
@@ -267,16 +286,19 @@ function CitizenModeDesktop({
         ${CITIZEN_SHARED_STYLES}
         .citizen-mode-layout { grid-template-columns: minmax(0, 1fr) 340px; max-width: 1280px; padding-top: 24px; }
         .citizen-status-card { border-radius: 16px !important; padding: 34px !important; }
-        .citizen-location-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin-bottom: 28px; }
-        .citizen-location-name { align-items: center; display: flex; font-size: .9rem; font-weight: 650; gap: 8px; min-width: 0; flex: 1 1 auto; }
-        .citizen-location-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .citizen-location-controls select { background: rgba(255,255,255,.96); flex: 0 0 auto; max-width: 300px; }
+        .citizen-status-card { overflow: hidden !important; }
+        .citizen-location-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 26px; }
+        .citizen-location-caption { color: rgba(255,255,255,.75); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
         .citizen-status-title { font-size: clamp(2.4rem, 5vw, 3.5rem) !important; }
         .citizen-status-metrics { border-top: 1px solid rgba(255,255,255,.22); display: grid; gap: 12px; grid-template-columns: repeat(3,minmax(0,1fr)); margin-top: 30px; padding-top: 22px; }
-        .citizen-status-metric { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 12px; min-width: 0; padding: 16px; }
-        .citizen-forecast-grid { display: grid; gap: 10px; grid-template-columns: repeat(7,minmax(84px,1fr)); overflow-x: auto; padding: 24px; -ms-overflow-style: none; scrollbar-width: none; }
-        .citizen-forecast-grid::-webkit-scrollbar { display: none; }
-        .citizen-forecast-day { background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; padding: 14px 8px; }
+        .citizen-status-metric { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; min-width: 0; padding: 16px; backdrop-filter: blur(4px); }
+        .citizen-status-metric-label { color: rgba(255,255,255,.75); font-size: 12px; font-weight: 700; letter-spacing: .06em; margin-bottom: 8px; text-transform: uppercase; }
+        .citizen-status-metric-value { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; margin-bottom: 6px; }
+        .citizen-status-metric-value small { font-size: 15px; font-weight: 700; margin-left: 3px; opacity: .85; }
+        .citizen-status-metric-note { color: rgba(255,255,255,.85); font-size: 13px; line-height: 1.4; }
+        .citizen-rec-head { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 10px; justify-content: space-between; margin-bottom: 18px; }
+        .citizen-rec-head > div { white-space: nowrap; }
+        .citizen-rec-chip { border-radius: 999px; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 10px; white-space: nowrap; }
         .citizen-recommendations { display: grid; gap: 10px !important; }
         .citizen-action-card { background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px !important; padding: 14px; }
         .citizen-action-card:hover { border-color: rgba(99,102,241,.35); background: var(--surface); }
@@ -321,18 +343,11 @@ function CitizenModeDesktop({
               overflow: "visible"
             }}
           >
-            <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 16, pointerEvents: "none", zIndex: 0 }}>
-              <Icon
-                name={cardStyle.icon}
-                style={{ position: "absolute", right: "-20px", top: "-20px", fontSize: "280px", opacity: 0.1, transform: "rotate(-15deg)" }}
-              />
-            </div>
+            <HeroWaves />
 
             <div style={{ position: "relative", zIndex: 1 }}>
               <div className="citizen-location-controls">
-                <div className="citizen-location-name">
-                  <Icon name="location_on" style={{ fontSize: 20 }} /><span>{currentLocation}</span>
-                </div>
+                <span className="citizen-location-caption">Lokasi</span>
                 <WilayahPicker
                   variant="hero"
                   options={wilayahOptions}
@@ -353,11 +368,7 @@ function CitizenModeDesktop({
               <GuidanceText data={data} dataLoaded={dataLoaded} />
 
               <div className="citizen-status-metrics">
-                {[
-                  ["Kemungkinan Rob", data?.risk_probability != null ? `${Math.round(Number(data.risk_probability))}%` : "-", data ? (data.risk_probability != null ? risk : "Prediksi belum tersedia") : (dataLoaded ? "Tidak tersedia" : "Memuat...")],
-                  ["Puncak Pasang (di atas muka laut rata-rata)", data?.max_tidal_height != null ? `${meters.format(data.max_tidal_height)} meter` : "-", data?.peak_time ? `Pukul ${data.peak_time} WIB` : (dataLoaded ? "Tidak tersedia" : "Menunggu Data")],
-                  ["Laporan Sekitar", data ? `${data.nearby_reports.length} laporan` : "-", data ? "Dari pantauan warga" : (dataLoaded ? "Tidak tersedia" : "Dari pantauan warga")],
-                ].map(([label, value, note], i) => (
+                {statusMetrics(data, dataLoaded, risk).map(({ label, value, unit, note }, i) => (
                   <motion.div
                     key={label}
                     className="citizen-status-metric"
@@ -365,9 +376,9 @@ function CitizenModeDesktop({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + (i * 0.1) }}
                   >
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
-                    <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1, marginBottom: 8 }}>{value}</div>
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{note}</div>
+                    <div className="citizen-status-metric-label">{label}</div>
+                    <div className="citizen-status-metric-value">{value}{unit && <small>{unit}</small>}</div>
+                    <div className="citizen-status-metric-note">{note}</div>
                   </motion.div>
                 ))}
               </div>
@@ -378,7 +389,7 @@ function CitizenModeDesktop({
           <motion.section variants={itemVariants} className="panel flush">
             <div style={{ padding: "24px", borderBottom: "1px solid var(--line)" }}>
               <h2 style={{ fontSize: "1.25rem", margin: 0, marginBottom: 4 }}>Prakiraan 7 Hari ke Depan</h2>
-              <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: "14px" }}>Sumber: model prediksi SAIBAR. Waspada saat indikator merah mendominasi.</p>
+              <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: "14px" }}>Peluang rob tertinggi per hari di lokasi ini, beserta kelas risikonya.</p>
             </div>
 
             {forecastDays.length === 0 ? (
@@ -387,11 +398,7 @@ function CitizenModeDesktop({
                 {dataLoaded ? "." : " — memuat data..."}
               </div>
             ) : (
-            <div className="citizen-forecast-grid">
-              {forecastDays.map(({ day, label, percent, color }, i) => (
-                <ForecastDayColumn key={day} day={day} label={label} percent={percent} color={color} index={i} className="citizen-forecast-day" />
-              ))}
-            </div>
+            <ForecastTiles days={forecastDays} />
             )}
           </motion.section>
 
@@ -408,6 +415,9 @@ function CitizenModeDesktop({
                 ) : null;
               })()}
             </div>
+            {data && data.nearby_reports.length === 0 ? (
+              <NearbyReportsEmpty showReportButton={false} />
+            ) : (
             <div className="table-responsive"><table className="data-table" style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "var(--surface-soft)", borderBottom: "1px solid var(--line)" }}>
@@ -418,7 +428,6 @@ function CitizenModeDesktop({
                 </tr>
               </thead>
               <tbody>
-                {data?.nearby_reports.length === 0 && <tr><td colSpan={4} style={{ padding: "16px 24px", color: "var(--ink-soft)" }}>Belum ada laporan tervalidasi di sekitar lokasi ini.</td></tr>}
                 {data?.nearby_reports.map((report) => {
                   return <tr key={report.id} style={{ borderBottom: "1px solid var(--line)" }}>
                     <td style={{ padding: "16px 24px", fontWeight: 600, color: "var(--ink)" }}>{reportRegionLabel(report, true)}</td>
@@ -433,6 +442,7 @@ function CitizenModeDesktop({
                 })}
               </tbody>
             </table></div>
+            )}
           </motion.section>
         </div>
 
@@ -441,9 +451,14 @@ function CitizenModeDesktop({
           {/* Tindakan Card */}
           <motion.section variants={itemVariants} className="panel flush" style={{ border: "none", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
             <div style={{ padding: "32px 24px" }}>
-              <div style={{ fontWeight: 800, fontSize: 18, color: "var(--ink-primary)", display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-                <Icon name="verified_user" style={{ fontSize: 24, color: "var(--accent-blue)" }} />
-                Rekomendasi Tindakan
+              <div className="citizen-rec-head">
+                <div style={{ fontWeight: 800, fontSize: 18, color: "var(--ink-primary)", display: "flex", alignItems: "center", gap: 10 }}>
+                  <Icon name="verified_user" style={{ fontSize: 24, color: "var(--accent-blue)" }} />
+                  Yang Perlu Dilakukan
+                </div>
+                {data?.risk_class && (
+                  <span className="citizen-rec-chip" style={{ background: riskColors[data.risk_class] }}>Status {risk}</span>
+                )}
               </div>
               <div className="citizen-recommendations">
                 {actionCards.map((card) => (
@@ -590,10 +605,7 @@ function CitizenModeMobile({
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
         <div className="mobile-native-hero-bg">
-          <Icon
-            name={cardStyle.icon}
-            style={{ position: "absolute", right: "-30px", top: "-10px", fontSize: "240px", opacity: 0.1, transform: "rotate(-15deg)" }}
-          />
+          <HeroWaves />
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
@@ -623,8 +635,9 @@ function CitizenModeMobile({
               <div style={{ fontSize: 24, fontWeight: 800 }}>{data?.risk_probability != null ? `${Math.round(Number(data.risk_probability))}%` : "-"}</div>
             </div>
             <div style={{ flex: 1, background: "rgba(0,0,0,0.15)", borderRadius: 16, padding: "12px 16px" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.5, marginBottom: 4 }}>Pasang (vs MSL)</div>
-              <div style={{ fontSize: 24, fontWeight: 800 }}>{data?.max_tidal_height != null ? `${meters.format(data.max_tidal_height)}m` : "-"}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.5, marginBottom: 4 }}>Puncak pasang</div>
+              <div style={{ fontSize: 24, fontWeight: 800 }}>{data?.max_tidal_height != null ? `${meters.format(data.max_tidal_height)} m` : "-"}</div>
+              {data?.peak_time && <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>Pukul {data.peak_time} WIB</div>}
             </div>
           </div>
         </div>
@@ -633,23 +646,19 @@ function CitizenModeMobile({
       {/* 2. Horizontal Scroll Forecast */}
       <motion.section variants={itemVariants} initial="hidden" animate="show" style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: "1.1rem", margin: "0 0 4px 0", fontWeight: 700 }}>Prakiraan 7 Hari</h2>
-        <p style={{ margin: "0 0 16px 0", color: "var(--ink-soft)", fontSize: "13px" }}>Geser untuk melihat hari berikutnya</p>
+        <p style={{ margin: "0 0 14px 0", color: "var(--ink-soft)", fontSize: "13px" }}>Peluang rob tertinggi per hari di lokasi ini</p>
         
         {forecastDays.length === 0 && (
           <div style={{ padding: "20px 0", color: "var(--ink-soft)", fontSize: 13 }}>
             Prakiraan belum tersedia untuk lokasi ini{dataLoaded ? "." : " — memuat data..."}
           </div>
         )}
-        <div className="mobile-forecast-scroller">
-          {forecastDays.map(({ day, label, percent, color }, i) => (
-            <ForecastDayColumn key={day} day={day} label={label} percent={percent} color={color} index={i} className="mobile-forecast-card" compact />
-          ))}
-        </div>
+        {forecastDays.length > 0 && <ForecastTiles days={forecastDays} compact />}
       </motion.section>
 
       {/* 3. Bento Grid Actions */}
       <motion.section variants={itemVariants} initial="hidden" animate="show" style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: "1.1rem", margin: "0 0 16px 0", fontWeight: 700 }}>Langkah Mitigasi</h2>
+        <h2 style={{ fontSize: "1.1rem", margin: "0 0 16px 0", fontWeight: 700 }}>Yang Perlu Dilakukan</h2>
         <div className="mobile-bento-grid">
           {actionCards.map((card) => (
             <CitizenActionCard key={card[0]} card={card} variant="mobile" />
@@ -668,9 +677,7 @@ function CitizenModeMobile({
         
         <div className="mobile-report-list">
           {data?.nearby_reports.length === 0 && (
-            <div style={{ padding: 24, textAlign: "center", background: "var(--surface-soft)", borderRadius: 12, color: "var(--ink-soft)", fontSize: 13 }}>
-              Belum ada laporan di sekitar Anda.
-            </div>
+            <NearbyReportsEmpty showReportButton={getCurrentUser()?.role !== "admin"} compact />
           )}
           {data?.nearby_reports.map((report) => {
             return (
@@ -867,15 +874,23 @@ export function CitizenModePage() {
   // "stale" cukup ditandai lewat prediction_notice, TIDAK dengan menolkan
   // grafik (dulu hero bisa "Sangat Tinggi" sementara 7 bar di bawahnya
   // dipaksa "Rendah 0%": kontradiksi di layar peringatan).
-  const forecastDays = data && data.is_monitored
-    ? (Array.isArray(data.forecast) ? data.forecast : data.forecast.data).map((item) => {
+  const todayKey = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  })();
+  const forecastDays: ForecastDay[] = data && data.is_monitored
+    ? (Array.isArray(data.forecast) ? data.forecast : data.forecast.data).slice(0, 7).map((item) => {
         const rawDate = item.prediction_date.split("T")[0].split(" ")[0]; // YYYY-MM-DD
         const riskClass = item.risk_class as RiskClass;
+        const date = new Date(`${rawDate}T00:00:00`);
         return {
-          day: new Date(`${rawDate}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
+          key: rawDate,
+          day: date.toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
+          weekday: date.toLocaleDateString("id-ID", { weekday: "short" }),
+          isToday: rawDate === todayKey,
           label: riskLabels[riskClass] ?? riskClass,
           percent: Math.round(Number(item.risk_probability ?? 0)),
-          color: riskClass === "sangat_tinggi" ? "var(--critical)" : riskClass === "tinggi" ? "var(--high)" : riskClass === "sedang" ? "var(--medium)" : "var(--low)",
+          color: riskColors[riskClass] ?? riskColors.rendah,
         };
       })
     : [];
@@ -884,10 +899,9 @@ export function CitizenModePage() {
 
   const user = getCurrentUser();
 
-  const actionCards = [
-    ["Jauhi area rendah", "Hindari jalan pesisir dan area yang mudah tergenang.", "priority_high"],
-    ["Siapkan barang penting", "Amankan dokumen dan barang elektronik sebelum puncak pasang.", "inventory_2"],
-    ["Ikuti arahan BPBD", "Jika kondisi memburuk, ikuti informasi resmi dari petugas.", "campaign"],
+  // Rekomendasi mengikuti status; kartu "Laporkan kejadian" tetap untuk non-admin.
+  const actionCards: ActionCard[] = [
+    ...recommendationsFor(data?.risk_class, Boolean(data?.is_monitored)),
     ...(user?.role !== "admin" ? [["Laporkan kejadian", "Tambahkan foto dan lokasi bila melihat genangan di sekitar Anda.", "add_location_alt"]] : []),
   ];
 

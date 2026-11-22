@@ -5,6 +5,7 @@ import { ProvinceTrendChart } from "../shared/components/ProvinceTrendChart";
 import { ThemeToggle } from "../shared/components/ThemeToggle";
 import { LandingFooter } from "./LandingFooter";
 import { HeroForecast } from "./HeroForecast";
+import { RolesSection } from "./RolesSection";
 import { useTheme } from "../shared/utils/useTheme";
 import { motion, AnimatePresence } from "framer-motion";
 import { dashboardHashForRole } from "../shared/constants/roles";
@@ -871,79 +872,11 @@ export function PortalPage() {
       </section>
       */}
 
-      {/* Bento Layout Grid */}
-      <section className="bento-section">
-        <div className="bento-header-wrap">
-          <div>
-            <h2>Portal Sistem Terpadu</h2>
-          </div>
-          <div>
-            <p>Satu basis data untuk berbagai peran. Pilih modul operasional di bawah untuk melanjutkan aktivitas.</p>
-          </div>
-        </div>
-
-        <div className="bento-container-grid">
-          {/* Card 1: Portal Publik (col-span-8) */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="bento-card-el card-span-7"
-          >
-            <div>
-              <span className="card-meta-title">Public Access</span>
-              <h3>Peta & Laporan Warga</h3>
-              <p>
-                Pantau wilayah mana saja yang diprediksi terkena rob besok, baca panduan keselamatan, dan laporkan langsung jika air mulai naik di lingkungan Anda.
-              </p>
-
-              <div className="card-preview-container">
-                <MapPreview />
-              </div>
-            </div>
-            <div className="card-links-row">
-              <a className="card-action-link" href="#/map">Akses Sistem <Icon name="arrow_forward" /></a>
-              <a className="card-action-link" href="#/onboarding">Panduan Mitigasi <Icon name="arrow_forward" /></a>
-            </div>
-          </motion.div>
-
-          {/* Card 2: Dashboard BPBD (col-span-4) - Dark Theme for Contrast */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-            className="bento-card-el card-span-5 dark-theme"
-          >
-            <div>
-              <span className="card-meta-title">BPBD Command Center</span>
-              <h3>Dashboard BPBD</h3>
-              <p>
-                Pusat kendali dan monitoring prediksi risiko, analisis dampak, dan manajemen logistik untuk operator dan pengambil keputusan.
-              </p>
-              <div style={{ marginTop: 40, width: "100%", height: 180, background: "var(--bg-primary)", borderRadius: 12, border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", padding: 16, gap: 12 }}>
-                   <div style={{ display: "flex", gap: 8 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--critical)" }} />
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--medium)" }} />
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--low)" }} />
-                   </div>
-                  <div style={{ display: "flex", gap: 12, flex: 1 }}>
-                     <div style={{ width: "35%", height: "100%", background: "var(--bg-card)", borderRadius: 8 }} />
-                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                       <div style={{ width: "100%", height: "35%", background: "var(--bg-card)", borderRadius: 8 }} />
-                       <div style={{ width: "100%", flex: 1, background: "var(--bg-card)", borderRadius: 8 }} />
-                     </div>
-                  </div>
-                </div>
-            </div>
-            <div className="card-links-row">
-              <a className="card-action-link" href="#/login">Masuk Dashboard <Icon name="arrow_forward" /></a>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
+      <RolesSection
+        researchHref={currentUser && ["peneliti", "admin"].includes(currentUser.role) ? "#/research" : "#/login"}
+        adminHref={currentUser?.role === "admin" ? dashboardRoute : "#/login"}
+        adminLabel={currentUser?.role === "admin" ? "Buka Dashboard" : "Masuk sebagai Pengelola"}
+      />
 
       {/* Prediksi Probabilitas Rob — grafik sama persis dengan halaman Pantauan Provinsi */}
       <section className="bento-section" style={{ marginTop: '100px', width: '100%' }}>

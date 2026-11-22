@@ -52,7 +52,18 @@ export type ModeAwamData = {
   nearby_reports: NearbyReport[];
 };
 
-export type ForecastDay = { day: string; label: string; percent: number; color: string };
+export type ForecastDay = {
+  /** Kunci unik (YYYY-MM-DD). */
+  key: string;
+  /** Tanggal pendek, mis. "23 Nov". */
+  day: string;
+  /** Nama hari pendek, mis. "Sen". */
+  weekday: string;
+  isToday: boolean;
+  label: string;
+  percent: number;
+  color: string;
+};
 /** Kartu tindakan: `[judul, penjelasan, nama ikon]`. */
 export type ActionCard = string[];
 
@@ -139,43 +150,100 @@ export function GuidanceText({ data, dataLoaded, compact }: { data: ModeAwamData
 }
 
 /**
- * Kolom grafik prakiraan (bar animasi). Desktop memakai `.citizen-forecast-day`
- * dalam grid 7 kolom; mobile memakai `.mobile-forecast-card` dalam scroller.
- * Prop `className` dibawa dari view; `compact` hanya mengubah ukuran/animasinya.
+ * Prakiraan 7 hari sebagai ubin harian: angka peluang besar + label & warna
+ * kelas risiko. Menggantikan batang 0–100% yang tampak kosong saat peluangnya
+ * kecil, dan grid tujuh kolom yang dulu terpotong (scrollbar disembunyikan)
+ * sehingga hari ke-7 tak terlihat. Desktop & mobile memakai komponen yang sama.
  */
-export function ForecastDayColumn({ day, label, percent, color, index, className, compact }: {
-  day: string;
-  label: string;
-  percent: number;
-  color: string;
-  index: number;
-  className: string;
-  compact?: boolean;
-}) {
+export function ForecastTiles({ days, compact }: { days: ForecastDay[]; compact?: boolean }) {
   return (
-    <motion.div
-      className={className}
-      whileHover={compact ? undefined : { y: -5 }}
-      style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}
-    >
-      <div style={compact
-        ? { fontSize: 12, color: "var(--ink-soft)", fontWeight: 700, marginBottom: 12 }
-        : { fontSize: 13, color: "var(--ink-soft)", fontWeight: 600, marginBottom: 12 }}>{day}</div>
-      <div style={compact
-        ? { height: 100, width: 14, borderRadius: 999, background: "var(--line)", position: "relative", margin: "0 auto 12px auto" }
-        : { height: 120, width: 12, borderRadius: 999, background: "var(--line)", position: "relative", margin: "8px 0" }}>
-        <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: `${Math.min(percent, 100)}%` }}
-          transition={{ delay: (compact ? 0.3 : 0.5) + (index * (compact ? 0.1 : 0.05)), duration: 0.8, type: "spring" }}
-          style={{ position: "absolute", bottom: 0, left: 0, width: "100%", background: color, borderRadius: 999 }}
-        />
+    <ol className={compact ? "citizen-tiles compact" : "citizen-tiles"}>
+      {days.map((d, index) => (
+        <motion.li
+          key={d.key}
+          className={d.isToday ? "citizen-tile is-today" : "citizen-tile"}
+          style={{ ["--tile-color" as string]: d.color }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 + index * 0.05, duration: 0.4, ease: "easeOut" }}
+          title={`${d.day}: ${d.label}, peluang ${d.percent}%`}
+        >
+          <span className="citizen-tile-dow">{d.isToday ? "Hari ini" : d.weekday}</span>
+          <span className="citizen-tile-pct">{d.percent}<small>%</small></span>
+          <span className="citizen-tile-cls">{d.label}</span>
+          <span className="citizen-tile-date">{d.day}</span>
+        </motion.li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Rekomendasi tindakan per kelas risiko. Dulu daftarnya tetap (warga berstatus
+ * "Rendah" tetap disuruh "Jauhi area rendah"); kini mengikuti status dan
+ * selaras dengan pesan panduan backend (MapService::modeAwamGuidanceMessage).
+ */
+export function recommendationsFor(riskClass: RiskClass | null | undefined, isMonitored: boolean): ActionCard[] {
+  if (!isMonitored || !riskClass) {
+    return [
+      ["Tetap waspada", "Perhatikan kondisi sekitar, terutama saat pasang tinggi.", "visibility"],
+      ["Ikuti arahan BPBD", "Utamakan informasi resmi dari petugas dan perangkat kelurahan.", "campaign"],
+    ];
+  }
+  switch (riskClass) {
+    case "sangat_tinggi":
+      return [
+        ["Bersiap mengungsi", "Siapkan tas darurat dan ketahui tujuan aman bila air mulai naik.", "directions_run"],
+        ["Amankan rumah", "Pindahkan barang penting ke tempat tinggi dan matikan listrik bila air masuk.", "power_off"],
+        ["Ikuti arahan BPBD", "Utamakan informasi resmi dari petugas dan perangkat kelurahan.", "campaign"],
+      ];
+    case "tinggi":
+      return [
+        ["Hindari area rendah", "Kurangi aktivitas di jalan pesisir dan area yang mudah tergenang.", "block"],
+        ["Amankan barang penting", "Pindahkan dokumen dan barang elektronik ke tempat yang lebih tinggi.", "inventory_2"],
+        ["Pantau puncak pasang", "Perhatikan jam puncak pasang dan perubahan muka air di sekitar Anda.", "waves"],
+      ];
+    case "sedang":
+      return [
+        ["Waspada saat puncak pasang", "Hindari tepi pantai dan area rendah menjelang jam puncak pasang.", "schedule"],
+        ["Cek saluran air", "Pastikan selokan di sekitar rumah tidak tersumbat agar air cepat surut.", "water_drop"],
+        ["Pantau pembaruan", "Kondisi bisa berubah; cek prakiraan secara berkala.", "update"],
+      ];
+    case "rendah":
+    default:
+      return [
+        ["Pantau pembaruan", "Prediksi diperbarui setiap pagi. Cek lagi sebelum beraktivitas di pesisir.", "update"],
+        ["Kenali jalur aman", "Ketahui jalan yang tidak mudah tergenang menuju tempat yang lebih tinggi.", "route"],
+        ["Simpan nomor penting", "Catat kontak BPBD dan perangkat kelurahan untuk keadaan darurat.", "contact_phone"],
+      ];
+  }
+}
+
+/** Hiasan ombak halus di dasar kartu status (menggantikan ikon raksasa). */
+export function HeroWaves() {
+  return (
+    <svg className="citizen-hero-waves" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+      <path className="w1" d="M0 70 Q150 40 300 70 T600 70 T900 70 T1200 70 V120 H0 Z" />
+      <path className="w2" d="M0 88 Q150 62 300 88 T600 88 T900 88 T1200 88 V120 H0 Z" />
+    </svg>
+  );
+}
+
+/** Keadaan kosong laporan warga — lebih ramah daripada tabel berkepala tanpa isi. */
+export function NearbyReportsEmpty({ showReportButton, compact }: { showReportButton: boolean; compact?: boolean }) {
+  return (
+    <div className={compact ? "citizen-reports-empty compact" : "citizen-reports-empty"}>
+      <span className="citizen-reports-empty-icon"><Icon name="check_circle" /></span>
+      <div>
+        <strong>Belum ada laporan genangan di sekitar lokasi ini</strong>
+        <p>Laporan warga yang sudah divalidasi petugas akan muncul di sini.</p>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 800, color: color as string, marginTop: compact ? 0 : 12 }}>{label}</div>
-      <div style={compact
-        ? { fontSize: 12, color: "var(--ink-soft)", marginTop: 2 }
-        : { fontSize: 13, color: "var(--ink-soft)", marginTop: 4 }}>{percent}%</div>
-    </motion.div>
+      {showReportButton && (
+        <a className="btn secondary" href="#/reports">
+          <Icon name="add_location_alt" /> Laporkan Genangan
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -248,16 +316,38 @@ export function ShareWarningButtons({ onWhatsApp, onCopy, compact }: {
   );
 }
 
+/** Nama sumber data internal → keterangan yang dimengerti warga. */
+function dataSourceLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  if (/open-?meteo/i.test(value)) return "Model SAIBAR · data cuaca & gelombang Open-Meteo";
+  return value;
+}
+
+/**
+ * Detail teknis prediksi, dilipat secara default: warga cukup melihat status,
+ * yang ingin tahu bisa membukanya. Warna netral — dulu "Kepercayaan Rendah"
+ * ditampilkan hijau sehingga terbaca sebagai kabar baik.
+ */
 export function ModelInfoPanel({ data }: { data: ModeAwamData | undefined }) {
   return (
-    <motion.section variants={itemVariants} className="panel" style={{ background: "var(--surface-soft)", border: "none" }}>
-      <h2 style={{ fontSize: "1.05rem", margin: "0 0 16px 0" }}>Informasi Teknis Model</h2>
-      <div style={{ display: "grid", gap: 10, fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.5 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}><span>Model AI</span> <strong style={{ textAlign: "right" }}>{data?.model_version ?? "—"}</strong></div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}><span>Kepercayaan</span> <strong style={{ textAlign: "right", color: "var(--low)" }}>{confidenceLabel(data?.confidence_score)}</strong></div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}><span>Sumber Data</span> <strong style={{ textAlign: "right" }}>{data?.data_source ?? "—"}</strong></div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}><span>Pembaruan</span> <strong style={{ textAlign: "right" }}>{formatGeneratedAt(data?.generated_at)}</strong></div>
-      </div>
+    <motion.section variants={itemVariants} className="panel citizen-model-panel">
+      <details>
+        <summary>
+          <Icon name="info" />
+          <span>Detail teknis prediksi</span>
+          <Icon name="expand_more" className="citizen-model-chevron" />
+        </summary>
+        <dl>
+          <div><dt>Diperbarui</dt><dd>{formatGeneratedAt(data?.generated_at)}</dd></div>
+          <div><dt>Sumber</dt><dd>{dataSourceLabel(data?.data_source)}</dd></div>
+          <div><dt>Model</dt><dd>{data?.model_version ?? "—"}</dd></div>
+          <div><dt>Keyakinan model</dt><dd>{confidenceLabel(data?.confidence_score)}</dd></div>
+        </dl>
+        <p className="citizen-model-note">
+          Prediksi adalah alat kewaspadaan, bukan kepastian. Gunakan bersama arahan resmi BPBD dan kondisi nyata di
+          lapangan.
+        </p>
+      </details>
     </motion.section>
   );
 }
@@ -316,4 +406,118 @@ export const CITIZEN_SHARED_STYLES = `
   }
 
   .citizen-share-actions.compact { display: flex; flex-direction: column; gap: 10px; }
+
+  /* Hiasan ombak di dasar kartu status */
+  .citizen-hero-waves {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 90px;
+    pointer-events: none;
+  }
+  .citizen-hero-waves .w1 { fill: rgba(255, 255, 255, 0.08); }
+  .citizen-hero-waves .w2 { fill: rgba(255, 255, 255, 0.06); }
+
+  /* Ubin prakiraan 7 hari */
+  .citizen-tiles {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 20px 24px 24px;
+  }
+  .citizen-tile {
+    align-items: center;
+    background: color-mix(in srgb, var(--tile-color) 10%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--tile-color) 24%, transparent);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 12px 4px 10px;
+    text-align: center;
+  }
+  .citizen-tile.is-today { border-color: var(--tile-color); box-shadow: inset 0 0 0 1px var(--tile-color); }
+  .citizen-tile-dow { color: var(--ink-soft); font-size: 12px; font-weight: 650; white-space: nowrap; }
+  .citizen-tile.is-today .citizen-tile-dow { color: var(--ink); font-weight: 750; }
+  .citizen-tile-pct { color: var(--ink); font-size: 1.45rem; font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+  .citizen-tile-pct small { color: var(--ink-soft); font-size: 0.72rem; font-weight: 700; margin-left: 1px; }
+  .citizen-tile-cls { color: var(--tile-color); font-size: 11.5px; font-weight: 750; white-space: nowrap; }
+  .citizen-tile-date { color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
+  .citizen-tiles.compact { gap: 5px; padding: 0; }
+  .citizen-tiles.compact .citizen-tile { border-radius: 10px; padding: 9px 2px 8px; }
+  .citizen-tiles.compact .citizen-tile-dow { font-size: 10.5px; }
+  .citizen-tiles.compact .citizen-tile-pct { font-size: 1.02rem; }
+  .citizen-tiles.compact .citizen-tile-pct small { font-size: 0.6rem; }
+  .citizen-tiles.compact .citizen-tile-cls,
+  .citizen-tiles.compact .citizen-tile-date { display: none; }
+  @media (max-width: 900px) {
+    .citizen-tiles:not(.compact) .citizen-tile-cls { font-size: 10px; }
+    .citizen-tiles:not(.compact) .citizen-tile-pct { font-size: 1.2rem; }
+  }
+
+  /* Laporan warga kosong */
+  .citizen-reports-empty {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 16px;
+    padding: 22px 24px;
+  }
+  .citizen-reports-empty > div { flex: 1 1 240px; min-width: 0; }
+  .citizen-reports-empty strong { color: var(--ink); display: block; font-size: 14.5px; margin-bottom: 2px; }
+  .citizen-reports-empty p { color: var(--ink-soft); font-size: 13.5px; line-height: 1.5; margin: 0; }
+  .citizen-reports-empty-icon {
+    align-items: center;
+    background: color-mix(in srgb, var(--low) 14%, transparent);
+    border-radius: 12px;
+    color: var(--low);
+    display: inline-flex;
+    flex: none;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+  }
+  .citizen-reports-empty .btn { white-space: nowrap; }
+  .citizen-reports-empty.compact {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .citizen-reports-empty.compact .btn { justify-content: center; width: 100%; }
+
+  /* Detail teknis (dilipat) */
+  .citizen-model-panel { background: var(--surface-soft) !important; border: none !important; padding: 0 !important; }
+  .citizen-model-panel summary {
+    align-items: center;
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    font-size: 14px;
+    font-weight: 700;
+    gap: 8px;
+    list-style: none;
+    padding: 16px 20px;
+  }
+  .citizen-model-panel summary::-webkit-details-marker { display: none; }
+  .citizen-model-panel summary .material-symbols-outlined:first-child { color: var(--ink-soft); font-size: 19px; }
+  .citizen-model-chevron { color: var(--ink-soft); font-size: 20px; margin-left: auto; transition: transform 0.2s ease; }
+  .citizen-model-panel details[open] .citizen-model-chevron { transform: rotate(180deg); }
+  .citizen-model-panel dl { display: grid; gap: 0; margin: 0; padding: 0 20px; }
+  .citizen-model-panel dl > div {
+    border-top: 1px solid var(--line);
+    display: grid;
+    font-size: 13px;
+    gap: 12px;
+    grid-template-columns: 110px 1fr;
+    padding: 9px 0;
+  }
+  .citizen-model-panel dt { color: var(--ink-soft); }
+  .citizen-model-panel dd { color: var(--ink); font-weight: 600; margin: 0; text-align: right; }
+  .citizen-model-note { color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; margin: 0; padding: 10px 20px 18px; }
 `;

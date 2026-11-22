@@ -1,10 +1,12 @@
 /**
- * Prakiraan rob 7 hari di hero landing — "tabel pasang-surut" mini.
+ * Prakiraan rob 7 hari di hero landing.
  *
- * Tiap hari satu batang: tinggi = peluang rob tertinggi di antara kelurahan
- * terpantau, warna = kelas risiko terburuk hari itu (palet yang sama dengan
- * peta). Datanya dari /public/province/forecast (anonim). Bila gagal dimuat
- * atau kosong, komponen tidak merender apa pun — tidak ada angka karangan.
+ * Tiap hari satu ubin: angka = peluang rob tertinggi di antara kelurahan
+ * terpantau, warna & label = kelas risiko terburuk hari itu (palet yang sama
+ * dengan peta). Ubin (bukan batang 0–100%) tetap terbaca saat peluangnya
+ * kecil, tanpa membesar-besarkan angka. Datanya dari
+ * /public/province/forecast (anonim). Bila gagal dimuat atau kosong,
+ * komponen tidak merender apa pun — tidak ada angka karangan.
  */
 import { useEffect, useState } from "react";
 import { Icon } from "../shared/components/Icon";
@@ -66,6 +68,7 @@ export function HeroForecast() {
       risk,
       peak: Math.round(num(row.max_probability)),
       highRisk: num(row.high_risk_count),
+      critical: num(row.critical_count),
       regions: num(row.region_count),
     };
   });
@@ -73,31 +76,43 @@ export function HeroForecast() {
   const now = new Date();
   const today = days.find((d) => sameDay(d.date, now)) ?? days[0];
   const todayIsToday = sameDay(today.date, now);
-  const dayLabel = todayIsToday
-    ? "Hari ini"
-    : today.date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
+  const dayName = (day: (typeof days)[number], capital = false) =>
+    sameDay(day.date, now)
+      ? capital ? "Hari ini" : "hari ini"
+      : day.date.toLocaleDateString("id-ID", { weekday: "long" });
+
+  // Sorotan minggu ini: hari dengan kelas terburuk; bila semuanya di bawah
+  // "tinggi", sebutkan hari dengan peluang tertinggi.
+  const rank = (risk: RiskClass) => SCALE.indexOf(risk);
+  const worst = days.reduce((a, b) =>
+    rank(b.risk) > rank(a.risk) || (rank(b.risk) === rank(a.risk) && b.peak > a.peak) ? b : a,
+  );
+  const maxPeak = Math.max(...days.map((d) => d.peak));
+  const peakIdx = days.map((d, i) => (d.peak === maxPeak ? i : -1)).filter((i) => i >= 0);
+  const consecutive = peakIdx.every((v, i) => i === 0 || v === peakIdx[i - 1] + 1);
+  const peakDays =
+    peakIdx.length === 1
+      ? dayName(days[peakIdx[0]], true)
+      : consecutive
+        ? `${dayName(days[peakIdx[0]], true)}–${dayName(days[peakIdx[peakIdx.length - 1]])}`
+        : peakIdx.slice(0, 3).map((i) => dayName(days[i], true)).join(", ");
+
+  const dateLabel = today.date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <section className="hf" aria-label="Prakiraan banjir rob 7 hari">
       <header className="hf-head">
-        <div>
+        <div className="hf-status">
           <span className="hf-eyebrow">Prakiraan rob · 7 hari</span>
-          <p className="hf-summary">
-            {today.highRisk > 0 ? (
-              <>
-                {dayLabel}{" "}
-                <strong style={{ color: riskColors[today.risk] }}>
-                  {today.highRisk.toLocaleString("id-ID")}
-                  {today.regions > 0 && <> dari {today.regions.toLocaleString("id-ID")}</>} kelurahan
-                </strong>{" "}
-                terpantau berisiko tinggi, dengan peluang tertinggi <strong>{today.peak}%</strong>.
-              </>
-            ) : (
-              <>
-                {dayLabel} tidak ada kelurahan berisiko tinggi. Peluang tertinggi
-                {today.regions > 0 && <> di {today.regions.toLocaleString("id-ID")} kelurahan terpantau</>}:{" "}
-                <strong>{today.peak}%</strong>.
-              </>
+          <p className="hf-today">
+            <span className="hf-today-label">{todayIsToday ? "Hari ini" : dateLabel}</span>
+            <strong style={{ color: riskColors[today.risk] }}>{riskLabels[today.risk]}</strong>
+          </p>
+          <p className="hf-meta">
+            Peluang tertinggi <b>{today.peak}%</b>
+            {today.regions > 0 && <> · {today.regions.toLocaleString("id-ID")} kelurahan terpantau</>}
+            {today.highRisk > 0 && (
+              <> · <b style={{ color: riskColors[today.risk] }}>{today.highRisk.toLocaleString("id-ID")} berisiko tinggi</b></>
             )}
           </p>
         </div>
@@ -112,17 +127,18 @@ export function HeroForecast() {
           return (
             <li
               key={day.key}
-              className={`hf-day${isToday ? " is-today" : ""}`}
+              className={`hf-tile${isToday ? " is-today" : ""}`}
               style={{ ["--hf-color" as string]: riskColors[day.risk], ["--hf-i" as string]: index }}
               title={`${day.date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}: ${riskLabels[day.risk]}, peluang tertinggi ${day.peak}%`}
             >
               <span className="hf-dow">
                 {isToday && todayIsToday ? "Hari ini" : day.date.toLocaleDateString("id-ID", { weekday: "short" })}
               </span>
-              <span className="hf-bar" aria-hidden="true">
-                <span className="hf-fill" style={{ height: `${Math.max(day.peak, 4)}%` }} />
+              <span className="hf-pct">
+                {day.peak}
+                <small>%</small>
               </span>
-              <span className="hf-val">{day.peak}%</span>
+              <span className="hf-cls">{riskLabels[day.risk]}</span>
               <span className="hf-date">
                 {day.date.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
               </span>
@@ -132,8 +148,22 @@ export function HeroForecast() {
       </ol>
 
       <footer className="hf-legend">
-        <span className="hf-legend-note">Tinggi batang = peluang tertinggi · warna = kelas risiko terburuk</span>
-        <span className="hf-scale">
+        <span className="hf-week">
+          {rank(worst.risk) >= rank("tinggi") ? (
+            <>
+              <Icon name="warning" />
+              Waspada {dayName(worst)}: {worst.highRisk.toLocaleString("id-ID")} kelurahan berisiko tinggi
+              {worst.critical > 0 && <> ({worst.critical.toLocaleString("id-ID")} di antaranya sangat tinggi)</>}, peluang
+              hingga {worst.peak}%.
+            </>
+          ) : (
+            <>
+              <Icon name="trending_up" />
+              Tertinggi minggu ini: {peakDays}, {maxPeak}%.
+            </>
+          )}
+        </span>
+        <span className="hf-scale" aria-label="Skala kelas risiko">
           {SCALE.map((risk) => (
             <span key={risk}>
               <i style={{ background: riskColors[risk] }} />
