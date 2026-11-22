@@ -121,16 +121,37 @@
     filter: brightness(0.8) contrast(1.1);
   }
 
-  :root[data-theme="dark"] .maplibregl-popup-content {
+  /* Atribusi Mapbox WAJIB tampil (© Mapbox, © OpenStreetMap, Improve this
+     map — panduan atribusi Mapbox), tapi warna & ukuran boleh disesuaikan
+     tema asal tetap terbaca. Logo Mapbox tidak boleh diubah gayanya. */
+  .mapboxgl-ctrl.mapboxgl-ctrl-attrib {
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 6px 0 0 0;
+    font-size: 10.5px;
+    padding: 1px 6px;
+  }
+  .mapboxgl-ctrl-attrib a { color: #334155; }
+  :root[data-theme="dark"] .mapboxgl-ctrl.mapboxgl-ctrl-attrib { background: rgba(15, 23, 42, 0.55); }
+  :root[data-theme="dark"] .mapboxgl-ctrl-attrib a { color: #cbd5e1; }
+  :root[data-theme="dark"] .mapboxgl-ctrl-scale {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: #cbd5e1;
+    color: #e2e8f0;
+  }
+
+  :root[data-theme="dark"] .maplibregl-popup-content,
+  :root[data-theme="dark"] .mapboxgl-popup-content {
     background: var(--surface);
     color: var(--ink);
     box-shadow: 0 4px 14px rgba(0,0,0,0.4);
   }
-  :root[data-theme="dark"] .maplibregl-popup-tip {
+  :root[data-theme="dark"] .maplibregl-popup-tip,
+  :root[data-theme="dark"] .mapboxgl-popup-tip {
     border-top-color: var(--surface);
     border-bottom-color: var(--surface);
   }
-  :root[data-theme="dark"] .maplibregl-popup-close-button {
+  :root[data-theme="dark"] .maplibregl-popup-close-button,
+  :root[data-theme="dark"] .mapboxgl-popup-close-button {
     color: var(--ink-soft);
   }
   :root[data-theme="dark"] .map-toolbar {
@@ -2154,7 +2175,8 @@ select:focus {
 /* --- ELITE MOBILE UX --- */
 @media (max-width: 768px) {
   /* Touch-friendly MapLibre controls */
-  .maplibregl-ctrl-group > button {
+  .maplibregl-ctrl-group > button,
+  .mapboxgl-ctrl-group > button {
     width: 44px !important;
     height: 44px !important;
   }
@@ -2163,11 +2185,15 @@ select:focus {
      sedangkan peta hanya blok setinggi 46vh — offset besar cuma menyisakan
      celah kosong di dalam peta. */
   .maplibregl-ctrl-bottom-right,
-  .maplibregl-ctrl-bottom-left {
+  .maplibregl-ctrl-bottom-left,
+  .mapboxgl-ctrl-bottom-right,
+  .mapboxgl-ctrl-bottom-left {
     bottom: 0 !important;
   }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl,
-  .maplibregl-ctrl-bottom-left .maplibregl-ctrl {
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl,
+  .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl {
     margin: 0 6px 6px !important;
   }
 
