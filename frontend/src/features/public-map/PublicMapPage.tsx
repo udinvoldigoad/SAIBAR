@@ -12,6 +12,7 @@ import { riskColors, riskLabels } from "../../shared/constants/risk";
 import { getCurrentUser } from "../../shared/auth/session";
 import { severityLabels, type ReportSeverity } from "../reports/reportData";
 import "./publicMap.css";
+import { applyMapboxBasemap, emissive, EXTRUSION_MIN_PITCH, INDONESIA_BOUNDS, labelFont, layerSlot, loadMapEngine, MAPBOX_STYLE, MAPLIBRE_STYLE, MIN_ZOOM, type MapEngine } from "./mapEngine";
 import { formatMapDate, MapRegionPanel, MapRegionSheet } from "./MapRegionPanel";
 
 type GeoJsonFeature = { type: "Feature"; id: string; geometry: { type: string; coordinates: unknown }; properties: Record<string, unknown> };
@@ -210,6 +211,10 @@ function FilterSelect({ icon, ariaLabel, value, options, onChange }: {
 function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, userLocation, onSelectFeature }: { regions: FeatureCollection; reports: FeatureCollection; layers: MapLayers; activeLayers: Record<LayerKey, boolean>; selectedRegency: string; userLocation: [number, number] | null; onSelectFeature: (feature: GeoJsonFeature) => void }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
+  // Mesin peta aktif (Mapbox bila ada token, selain itu MapLibre). Dimuat
+  // async, jadi `mapReady` dipakai memicu ulang efek setelah peta tercipta.
+  const engineRef = useRef<MapEngine | null>(null);
+  const [mapReady, setMapReady] = useState(0);
   const userMarker = useRef<maplibregl.Marker | null>(null);
   const reportMarkers = useRef<maplibregl.Marker[]>([]);
   const predictionMarkers = useRef<maplibregl.Marker[]>([]);
@@ -223,36 +228,67 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
   const regionsRef = useRef(regions);
   regionsRef.current = regions;
   const clusterHandlersBound = useRef(false);
+  // Animasi denyut halo wilayah Tinggi/Sangat Tinggi (requestAnimationFrame).
+  const pulseFrame = useRef(0);
   // Ditandai true saat peta selesai `load`. Dipakai sebagai gerbang update yang
   // andal (lihat catatan di efek update di bawah).
   const mapLoaded = useRef(false);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      center: [105.26, -5.48],
-      zoom: 9,
-      style: {
-        version: 8,
-        // Glyph di-host sendiri (frontend/public/fonts/opensans/0-255.pbf) alih-alih
-        // fonts.openmaptiles.org — server demo itu diblokir CSP produksi (tak masuk
-        // connect-src) dan tak andal. Same-origin: aman CSP, cepat, tanpa pihak ketiga.
-        glyphs: "/fonts/{fontstack}/{range}.pbf",
-        sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors" } },
-        layers: [{ id: "osm", type: "raster", source: "osm" }],
-      },
-    });
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
-    map.current.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-right");
-    map.current.on("load", () => { mapLoaded.current = true; });
+    let cancelled = false;
+    let observer: ResizeObserver | null = null;
+    let themeObserver: MutationObserver | null = null;
     let resizeFrame = 0;
-    const observer = new ResizeObserver(() => {
-      cancelAnimationFrame(resizeFrame);
-      resizeFrame = requestAnimationFrame(() => map.current?.resize());
+
+    void loadMapEngine().then((engine) => {
+      // Komponen sudah unmount (atau StrictMode membersihkan efek pertama)
+      // sebelum modul Mapbox selesai dimuat → jangan buat peta; tiap `new Map`
+      // di Mapbox dihitung satu map load.
+      if (cancelled || !mapContainer.current || map.current) return;
+      engineRef.current = engine;
+      const { gl, kind } = engine;
+      const instance = new gl.Map({
+        container: mapContainer.current,
+        center: [105.26, -5.48],
+        zoom: 9,
+        minZoom: MIN_ZOOM,
+        maxBounds: INDONESIA_BOUNDS,
+        style: kind === "mapbox" ? MAPBOX_STYLE : MAPLIBRE_STYLE,
+      });
+      map.current = instance;
+      instance.addControl(new gl.NavigationControl({ visualizePitch: true }), "top-right");
+      instance.addControl(new gl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-right");
+      instance.on("style.load", () => applyMapboxBasemap(instance, kind));
+      instance.on("load", () => { mapLoaded.current = true; });
+
+      // Tema aplikasi berubah → ganti preset siang/malam basemap TANPA membuat
+      // ulang peta (membuat ulang = map load baru yang ditagih).
+      if (kind === "mapbox") {
+        themeObserver = new MutationObserver(() => applyMapboxBasemap(instance, kind));
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+      }
+
+      observer = new ResizeObserver(() => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => map.current?.resize());
+      });
+      observer.observe(mapContainer.current);
+      setMapReady((n) => n + 1);
     });
-    observer.observe(mapContainer.current);
-    return () => { observer.disconnect(); cancelAnimationFrame(resizeFrame); map.current?.remove(); map.current = null; mapLoaded.current = false; };
+
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+      themeObserver?.disconnect();
+      cancelAnimationFrame(resizeFrame);
+      map.current?.remove();
+      map.current = null;
+      mapLoaded.current = false;
+      clusterHandlersBound.current = false;
+      cancelAnimationFrame(pulseFrame.current);
+      pulseFrame.current = 0;
+    };
   }, []);
 
   // Penanda "Anda di sini" pada koordinat asli pengguna + terbang ke titik itu.
@@ -260,22 +296,25 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
   useEffect(() => {
     const instance = map.current;
     if (!instance || !userLocation) return;
+    const gl = engineRef.current?.gl ?? maplibregl;
     const showUser = () => {
       userMarker.current?.remove();
       const element = document.createElement("div");
       element.className = "user-location-marker";
       element.setAttribute("aria-label", "Lokasi Anda");
       element.title = "Lokasi Anda";
-      userMarker.current = new maplibregl.Marker({ element }).setLngLat(userLocation).addTo(instance);
+      userMarker.current = new gl.Marker({ element }).setLngLat(userLocation).addTo(instance);
       instance.flyTo({ center: userLocation, zoom: 14, duration: 1200 });
     };
     if (mapLoaded.current) showUser(); else instance.once("load", showUser);
     return () => { instance.off("load", showUser); };
-  }, [userLocation]);
+  }, [userLocation, mapReady]);
 
   useEffect(() => {
     const instance = map.current;
     if (!instance) return;
+    const gl = engineRef.current?.gl ?? maplibregl;
+    const engineKind = engineRef.current?.kind ?? "maplibre";
     const update = (shouldFrame = true) => {
       predictionMarkers.current.forEach(m => m.remove());
       predictionMarkers.current = [];
@@ -290,6 +329,9 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
 
       const circleFeatures: GeoJSON.Feature[] = [];
       const riskPointFeatures: GeoJSON.Feature[] = [];
+      // Batas wilayah asli tiap kelurahan (Polygon/MultiPolygon dari API) —
+      // diwarnai sesuai kelas risiko & diangkat jadi kolom 3D saat peta miring.
+      const regionPolygonFeatures: GeoJSON.Feature[] = [];
       // Di zoom jauh badge angka diwakili gelembung cluster; pada zoom dekat
       // badge dikembalikan, dan hanya dibuat untuk wilayah yang benar-benar
       // terlihat (viewport culling) agar jumlah node DOM tetap kecil.
@@ -304,14 +346,25 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
 
         const risk = String(feature.properties.risk_class);
         const color = riskColors[risk] ?? riskColors.rendah;
-        const radius = zoneRadiusKm(risk);
+        const rank = RISK_RANK[risk] ?? 1;
+        const probability = Number(feature.properties.risk_probability) || 0;
 
-        // A. Area Lingkaran
-        circleFeatures.push({
-          type: "Feature",
-          geometry: geographicCircle(center, radius),
-          properties: { color, risk_class: risk }
-        });
+        // A. Area kelurahan (batas asli). Wilayah tanpa polygon jatuh ke
+        // lingkaran perkiraan seperti dulu agar tetap terlihat.
+        const geometryType = feature.geometry.type;
+        if (geometryType === "Polygon" || geometryType === "MultiPolygon") {
+          regionPolygonFeatures.push({
+            type: "Feature",
+            geometry: feature.geometry as unknown as GeoJSON.Polygon | GeoJSON.MultiPolygon,
+            properties: { color, riskRank: rank, probability, regionId: String(feature.id ?? "") },
+          });
+        } else {
+          circleFeatures.push({
+            type: "Feature",
+            geometry: geographicCircle(center, zoneRadiusKm(risk)),
+            properties: { color, risk_class: risk },
+          });
+        }
 
         // Titik untuk sumber ber-cluster (agregasi ditangani MapLibre).
         riskPointFeatures.push({
@@ -320,12 +373,14 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           properties: { 
             regionId: String(feature.id ?? ""), 
             color, 
-            riskRank: RISK_RANK[risk] ?? 1,
-            probability: Number(feature.properties.risk_probability) || 0
+            riskRank: rank,
+            probability,
           },
         });
 
-        if (!showBadges || !viewBounds.contains(center)) return;
+        // Badge angka hanya untuk Sedang ke atas: wilayah Rendah sudah cukup
+        // diwakili warna polygonnya, dan ratusan badge "0" cuma bikin ramai.
+        if (rank < 2 || !showBadges || !viewBounds.contains(center)) return;
 
         // B. Badge titik, klik untuk memilih wilayah di panel samping.
         // <button> asli, bukan div ber-role=button: dulu badge ini bisa
@@ -342,7 +397,7 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           onSelectFeatureRef.current(feature);
         });
 
-        const marker = new maplibregl.Marker({ element: el }).setLngLat(center).addTo(instance);
+        const marker = new gl.Marker({ element: el }).setLngLat(center).addTo(instance);
 
         // WAJIB setelah addTo(): maplibre menimpa aria-label elemen dengan
         // "Map marker" di dalam addTo(), sehingga label deskriptif yang
@@ -379,10 +434,10 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           // severity memakai kamus keparahan laporan (ringan/sedang/parah/
           // sangat_parah) — bukan kamus kelas risiko; radius lingkaran hanya
           // visualisasi keparahan, bukan hasil pengukuran.
-          const popup = new maplibregl.Popup({ offset: 25 }).setHTML(`<strong>Laporan: ${escapeHtml(report.properties.report_code ?? "Warga")}</strong><br>${escapeHtml(report.properties.location ?? "Wilayah pesisir")}${incidentDate ? `<br>Waktu kejadian: ${escapeHtml(incidentDate)}` : ""}<br>Tingkat Genangan: <span style="color:${color}; font-weight:bold;">${escapeHtml(severityLabels[severity as ReportSeverity] ?? severity)}</span><br>Ketinggian air: ${escapeHtml(report.properties.water_height_cm ?? "-")} cm`);
+          const popup = new gl.Popup({ offset: 25 }).setHTML(`<strong>Laporan: ${escapeHtml(report.properties.report_code ?? "Warga")}</strong><br>${escapeHtml(report.properties.location ?? "Wilayah pesisir")}${incidentDate ? `<br>Waktu kejadian: ${escapeHtml(incidentDate)}` : ""}<br>Tingkat Genangan: <span style="color:${color}; font-weight:bold;">${escapeHtml(severityLabels[severity as ReportSeverity] ?? severity)}</span><br>Ketinggian air: ${escapeHtml(report.properties.water_height_cm ?? "-")} cm`);
 
           reportMarkers.current.push(
-            new maplibregl.Marker({ color })
+            new gl.Marker({ color })
               .setLngLat([coordinates[0], coordinates[1]])
               .setPopup(popup)
               .addTo(instance)
@@ -394,9 +449,9 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
         layers.tidal_stations.features.forEach((station) => {
           const coordinates = station.geometry.coordinates;
           if (!Array.isArray(coordinates) || typeof coordinates[0] !== "number" || typeof coordinates[1] !== "number") return;
-          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(`<strong>Stasiun pasang surut</strong><br>${escapeHtml(station.properties.name ?? station.properties.code ?? "-")}<br>Sumber: ${escapeHtml(station.properties.source ?? "-")}`);
+          const popup = new gl.Popup({ offset: 20 }).setHTML(`<strong>Stasiun pasang surut</strong><br>${escapeHtml(station.properties.name ?? station.properties.code ?? "-")}<br>Sumber: ${escapeHtml(station.properties.source ?? "-")}`);
           tidalMarkers.current.push(
-            new maplibregl.Marker({ color: "#0284c7" })
+            new gl.Marker({ color: "#0284c7" })
               .setLngLat([coordinates[0], coordinates[1]])
               .setPopup(popup)
               .addTo(instance)
@@ -408,9 +463,9 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
         layers.critical_infrastructure.features.forEach((infra) => {
           const coordinates = infra.geometry.coordinates;
           if (!Array.isArray(coordinates) || typeof coordinates[0] !== "number" || typeof coordinates[1] !== "number") return;
-          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(`<strong>Infrastruktur Kritis</strong><br>${escapeHtml(infra.properties.name ?? "-")}<br>Tipe: ${escapeHtml(infra.properties.type ?? "-")}`);
+          const popup = new gl.Popup({ offset: 20 }).setHTML(`<strong>Infrastruktur Kritis</strong><br>${escapeHtml(infra.properties.name ?? "-")}<br>Tipe: ${escapeHtml(infra.properties.type ?? "-")}`);
           infraMarkers.current.push(
-            new maplibregl.Marker({ color: "#9333ea" })
+            new gl.Marker({ color: "#9333ea" })
               .setLngLat([coordinates[0], coordinates[1]])
               .setPopup(popup)
               .addTo(instance)
@@ -422,9 +477,9 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
         layers.evacuation_routes.features.forEach((route) => {
           const coordinates = route.geometry.coordinates;
           if (!Array.isArray(coordinates) || typeof coordinates[0] !== "number" || typeof coordinates[1] !== "number") return;
-          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(`<strong>Rute Evakuasi</strong><br>${escapeHtml(route.properties.name ?? "-")}`);
+          const popup = new gl.Popup({ offset: 20 }).setHTML(`<strong>Rute Evakuasi</strong><br>${escapeHtml(route.properties.name ?? "-")}`);
           evacMarkers.current.push(
-            new maplibregl.Marker({ color: "#16a34a" })
+            new gl.Marker({ color: "#16a34a" })
               .setLngLat([coordinates[0], coordinates[1]])
               .setPopup(popup)
               .addTo(instance)
@@ -450,7 +505,61 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           id: "coastline-layer-line",
           type: "line",
           source: coastlineSourceId,
-          paint: { "line-color": "#0369a1", "line-width": 2, "line-opacity": 0.75 },
+          ...layerSlot(engineKind, "middle"),
+          paint: { "line-color": "#0369a1", "line-width": 2, "line-opacity": 0.75, ...emissive(engineKind, "line") },
+        });
+      }
+
+      // Polygon kelurahan: isi tipis + garis tepi (datar) dan kolom 3D yang
+      // tingginya mengikuti peluang rob (hanya tampil saat peta dimiringkan).
+      const regionSourceId = "risk-regions";
+      const regionData: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: regionPolygonFeatures };
+      const regionSource = instance.getSource(regionSourceId);
+      if (regionSource) {
+        (regionSource as maplibregl.GeoJSONSource).setData(regionData);
+      } else {
+        instance.addSource(regionSourceId, { type: "geojson", data: regionData });
+        instance.addLayer({
+          id: "risk-regions-fill",
+          type: "fill",
+          source: regionSourceId,
+          ...layerSlot(engineKind, "middle"),
+          paint: {
+            "fill-color": ["get", "color"],
+            // Tipis di zoom provinsi, lebih tegas saat diperbesar.
+            "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0.12, 11, 0.32],
+            ...emissive(engineKind, "fill"),
+          },
+        });
+        instance.addLayer({
+          id: "risk-regions-line",
+          type: "line",
+          source: regionSourceId,
+          minzoom: 8,
+          ...layerSlot(engineKind, "middle"),
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 12, 1.6],
+            "line-opacity": 0.8,
+            ...emissive(engineKind, "line"),
+          },
+        });
+        instance.addLayer({
+          id: "risk-regions-3d",
+          type: "fill-extrusion",
+          source: regionSourceId,
+          layout: { visibility: "none" },
+          ...layerSlot(engineKind, "middle"),
+          paint: {
+            "fill-extrusion-color": ["get", "color"],
+            // 1% peluang = 60 m; minimal 80 m agar wilayah aman tetap tampak.
+            "fill-extrusion-height": ["max", 80, ["*", ["get", "probability"], 60]],
+            "fill-extrusion-base": 0,
+            // Cukup transparan agar jalan & label di bawahnya tetap terbaca.
+            "fill-extrusion-opacity": 0.6,
+            "fill-extrusion-vertical-gradient": true,
+            ...emissive(engineKind, "fill-extrusion"),
+          },
         });
       }
 
@@ -476,20 +585,24 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           id: "risk-circles-fill",
           type: "fill",
           source: circleSourceId,
+          ...layerSlot(engineKind, "middle"),
           minzoom: CLUSTER_MAX_ZOOM,
           paint: {
             "fill-color": ["get", "color"],
             "fill-opacity": 0.4,
+            ...emissive(engineKind, "fill"),
           },
         });
         instance.addLayer({
           id: "risk-circles-line",
           type: "line",
           source: circleSourceId,
+          ...layerSlot(engineKind, "middle"),
           minzoom: CLUSTER_MAX_ZOOM,
           paint: {
             "line-color": ["get", "color"],
             "line-width": 2,
+            ...emissive(engineKind, "line"),
           },
         });
       }
@@ -518,7 +631,31 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           },
         });
         instance.addLayer({
+          id: "risk-pulse",
+          ...layerSlot(engineKind, "top"),
+          type: "circle",
+          source: pointSourceId,
+          maxzoom: CLUSTER_MAX_ZOOM,
+          filter: [
+            "any", /* any-ok: operator ekspresi filter peta, bukan tipe TS */
+            ["all", ["has", "point_count"], [">=", ["get", "maxRank"], 3]],
+            ["all", ["!", ["has", "point_count"]], [">=", ["get", "riskRank"], 3]],
+          ],
+          paint: {
+            "circle-color": [
+              "case",
+              [">=", ["coalesce", ["get", "maxRank"], ["get", "riskRank"]], 4], riskColors.sangat_tinggi,
+              riskColors.tinggi,
+            ],
+            "circle-radius": 18,
+            "circle-opacity": 0.3,
+            "circle-blur": 0.6,
+            ...emissive(engineKind, "circle"),
+          },
+        });
+        instance.addLayer({
           id: "risk-clusters",
+          ...layerSlot(engineKind, "top"),
           type: "circle",
           source: pointSourceId,
           filter: ["has", "point_count"],
@@ -531,17 +668,25 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
               [">=", ["get", "maxRank"], 2], riskColors.sedang,
               riskColors.rendah,
             ],
-            "circle-radius": ["step", ["get", "point_count"], 15, 5, 19, 15, 25, 40, 31],
-            "circle-opacity": 0.9,
-            "circle-stroke-width": 3,
+            // Cluster yang seluruhnya Rendah cukup titik kecil; Sedang ke atas
+            // jadi gelembung yang ukurannya mengikuti jumlah wilayah.
+            "circle-radius": [
+              "case",
+              ["<", ["get", "maxRank"], 2], 6,
+              ["step", ["get", "point_count"], 15, 5, 19, 15, 25, 40, 31],
+            ],
+            "circle-opacity": ["case", ["<", ["get", "maxRank"], 2], 0.75, 0.92],
+            "circle-stroke-width": ["case", ["<", ["get", "maxRank"], 2], 1.5, 3],
             "circle-stroke-color": "#fff",
+            ...emissive(engineKind, "circle"),
           },
         });
         instance.addLayer({
           id: "risk-cluster-labels",
+          ...layerSlot(engineKind, "top"),
           type: "symbol",
           source: pointSourceId,
-          filter: ["has", "point_count"],
+          filter: ["all", ["has", "point_count"], [">=", ["get", "maxRank"], 2]],
           maxzoom: CLUSTER_MAX_ZOOM,
           layout: {
             "text-field": [
@@ -549,25 +694,28 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
               ["to-string", ["round", ["get", "maxProb"]]],
               "%"
             ],
-            "text-font": ["opensans"],
+            "text-font": labelFont(engineKind),
             "text-size": 12,
             "text-allow-overlap": true
           },
           paint: {
-            "text-color": "#ffffff"
+            "text-color": "#ffffff",
+            ...emissive(engineKind, "text"),
           }
         });
         instance.addLayer({
           id: "risk-unclustered",
+          ...layerSlot(engineKind, "top"),
           type: "circle",
           source: pointSourceId,
           filter: ["!", ["has", "point_count"]],
           maxzoom: CLUSTER_MAX_ZOOM,
           paint: {
             "circle-color": ["get", "color"],
-            "circle-radius": 7,
-            "circle-stroke-width": 2,
+            "circle-radius": ["match", ["get", "riskRank"], 1, 4.5, 2, 6.5, 8],
+            "circle-stroke-width": ["match", ["get", "riskRank"], 1, 1.2, 2],
             "circle-stroke-color": "#fff",
+            ...emissive(engineKind, "circle"),
           },
         });
       }
@@ -594,7 +742,33 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
           const region = regionsRef.current.features.find((item) => String(item.id) === String(regionId));
           if (region) onSelectFeatureRef.current(region);
         });
-        (["risk-clusters", "risk-unclustered"] as const).forEach((layerId) => {
+        instance.on("click", "risk-regions-fill", (event) => {
+          const regionId = event.features?.[0]?.properties?.regionId;
+          if (!regionId) return;
+          const region = regionsRef.current.features.find((item) => String(item.id) === String(regionId));
+          if (region) onSelectFeatureRef.current(region);
+        });
+        const sync3d = () => {
+          if (!instance.getLayer("risk-regions-3d")) return;
+          instance.setLayoutProperty("risk-regions-3d", "visibility", instance.getPitch() > EXTRUSION_MIN_PITCH ? "visible" : "none");
+        };
+        instance.on("pitch", sync3d);
+        sync3d();
+
+        // Denyut halo: radius & opasitas bergelombang ~1,6 detik per siklus.
+        // Dilewati bila pengguna mematikan animasi di sistem operasi.
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          const animate = (time: number) => {
+            if (!map.current || !instance.getLayer("risk-pulse")) return;
+            const phase = (time % 1600) / 1600;
+            instance.setPaintProperty("risk-pulse", "circle-radius", 14 + phase * 16);
+            instance.setPaintProperty("risk-pulse", "circle-opacity", 0.38 * (1 - phase));
+            pulseFrame.current = requestAnimationFrame(animate);
+          };
+          pulseFrame.current = requestAnimationFrame(animate);
+        }
+
+        (["risk-clusters", "risk-unclustered", "risk-regions-fill"] as const).forEach((layerId) => {
           instance.on("mouseenter", layerId, () => { instance.getCanvas().style.cursor = "pointer"; });
           instance.on("mouseleave", layerId, () => { instance.getCanvas().style.cursor = ""; });
         });
@@ -619,7 +793,7 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
         const center = featureCenter(f);
         if (center) {
           pointsCount++;
-          if (!bounds) bounds = new maplibregl.LngLatBounds(center, center);
+          if (!bounds) bounds = new gl.LngLatBounds(center, center);
           else bounds.extend(center);
         }
       });
@@ -656,7 +830,7 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
     const handleMoveEnd = () => update(false);
     instance.on("moveend", handleMoveEnd);
     return () => { instance.off("moveend", handleMoveEnd); instance.off("load", onLoad); };
-  }, [regions, reports, layers, activeLayers, selectedRegency]);
+  }, [regions, reports, layers, activeLayers, selectedRegency, mapReady]);
 
   return <div ref={mapContainer} className="map-canvas" style={{ minHeight: 560, width: "100%" }} aria-label="Peta interaktif risiko banjir rob" />;
 }
