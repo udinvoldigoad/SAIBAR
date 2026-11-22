@@ -6,6 +6,7 @@ import { Icon } from "../../shared/components/Icon";
 import { LoadingBlock } from "../../shared/components/LoadingBlock";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Skeleton } from "../../shared/components/Skeleton";
+import { InlineNotice } from "../../shared/components/InlineNotice";
 import { getCurrentUser } from "../../shared/auth/session";
 import { motion, useReducedMotion } from "framer-motion";
 import "../dashboards/dashboardKit.css";
@@ -125,6 +126,7 @@ export function ResearchPortalPage() {
   const [datasets, setDatasets] = useState<DatasetData[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKeyData[]>([]);
   const [rawGeneratedKey, setRawGeneratedKey] = useState<string | null>(null);
+  const [isRegenerating, setRegenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [stats, setStats] = useState<ResearchStats>({ dataset_count: 0, total_records: 0, downloads_this_month: 0, api_calls_today: 0, active_api_keys: 0 });
@@ -232,6 +234,8 @@ export function ResearchPortalPage() {
   // dibuat (research_purpose wajib, akun ditahan `menunggu` sampai admin
   // menyetujui). Peneliti yang sampai ke halaman ini sudah pernah ditinjau.
   const handleRegenerateKey = async () => {
+    if (isRegenerating) return;
+    setRegenerating(true);
     try {
       const res = await api<RegenerateKeyResponse>("/research/api-keys", {
         method: "POST",
@@ -243,6 +247,8 @@ export function ResearchPortalPage() {
       setApiKeys(keysRes.data);
     } catch (err: unknown) {
       toast.error(errorMessage(err, "Gagal meregenerasi API key."));
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -318,22 +324,21 @@ export function ResearchPortalPage() {
               <Icon name="vpn_key" style={{ fontSize: "20px" }} />
             </div>
             <div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--ink)" }}>Kredensial API Aktif</div>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--ink)" }}>Kunci akses API</div>
               {credentialLoading ? (
                 <Skeleton width={220} height={14} borderRadius={6} style={{ marginTop: 6 }} />
               ) : rawGeneratedKey ? (
                 <>
                   <div style={{ fontSize: "13px", color: "var(--ink)", fontFamily: "monospace", marginTop: "2px", wordBreak: "break-all" }}>{rawGeneratedKey}</div>
-                  <div style={{ fontSize: "12px", color: "var(--medium)", fontWeight: 700, marginTop: "3px", display: "flex", alignItems: "center", gap: 4 }}>
-                    <Icon name="warning" style={{ fontSize: 14 }} /> Kunci penuh hanya ditampilkan sekali — salin & simpan sekarang.
-                  </div>
+                  <p className="rp-key-hint">Kunci penuh hanya tampil sekali. Salin dan simpan sekarang.</p>
                 </>
               ) : activeKey ? (
-                <div style={{ fontSize: "13px", color: "var(--ink-soft)", fontFamily: "monospace", marginTop: "2px", wordBreak: "break-all" }}>
-                  {activeKey.key_prefix}**************** · <span style={{ fontFamily: "inherit" }}>kunci penuh hanya tampil sekali saat dibuat</span>
+                <div>
+                  <code className="rp-key-prefix">{activeKey.key_prefix}…</code>
+                  <p className="rp-key-hint">Regenerasi akan mengganti kunci ini dan mencabut akses kunci lama.</p>
                 </div>
               ) : (
-                <div style={{ fontSize: "13px", color: "var(--ink-soft)", marginTop: "2px" }}>Belum ada kunci API — buat sekarang, akses Anda sudah disetujui saat akun dibuat.</div>
+                <p className="rp-key-hint">Buat kunci untuk mengakses API penelitian.</p>
               )}
             </div>
           </div>
@@ -343,16 +348,17 @@ export function ResearchPortalPage() {
             ) : (
             <>
             {rawGeneratedKey && (
-              <button className="btn secondary" style={{ fontSize: "12px", padding: "8px 16px" }} onClick={handleCopyKey}>
+              <button type="button" className="rp-key-action" onClick={handleCopyKey}>
                 <Icon name="content_copy" style={{ fontSize: "16px" }} /> Salin Kunci
               </button>
             )}
             <button
-              className="btn outline"
-              style={{ fontSize: "12px", padding: "8px 16px", color: "var(--critical)", borderColor: "var(--critical)" }}
+              type="button"
+              className={`rp-key-action${activeKey || rawGeneratedKey ? "" : " primary"}`}
+              disabled={isRegenerating}
               onClick={handleRegenerateKey}
             >
-              <Icon name="refresh" style={{ fontSize: "16px" }} /> {keyButtonLabel}
+              <Icon name={isRegenerating ? "hourglass_top" : "refresh"} /> {isRegenerating ? "Memproses…" : keyButtonLabel}
             </button>
             </>
             )}
@@ -370,15 +376,10 @@ export function ResearchPortalPage() {
             .cred-card { flex-direction: column; align-items: stretch !important; gap: 14px; padding: 16px !important; }
             .cred-card-info { align-items: flex-start !important; }
             .cred-card-actions { width: 100%; }
-            .cred-card-actions .btn { flex: 1; justify-content: center; }
+            .cred-card-actions .rp-key-action { flex: 1; justify-content: center; }
             .cred-card-actions .skeleton { width: 100% !important; }
           }
 
-          /* Panduan cepat API: langkah bernomor agar peneliti tak bingung mulai. */
-          .api-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 14px; }
-          .api-steps li { position: relative; padding-left: 42px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.6; counter-increment: step; }
-          .api-steps li::before { content: counter(step); position: absolute; left: 0; top: -1px; width: 28px; height: 28px; border-radius: 50%; background: var(--ocean-dark); color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-          .api-steps strong { color: var(--ink); font-weight: 700; }
           /* Chip kode inline yang rapi — override rule global 'code' (inline-block
              dengan margin/padding besar) yang membuat teks terpisah berantakan. */
           .api-ref code, .api-inline-code { display: inline-block; margin: 0; border: 0; overflow-x: visible; vertical-align: baseline; background: var(--surface-muted); color: var(--ink); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-family: monospace; word-break: break-word; }
@@ -570,17 +571,14 @@ export function ResearchPortalPage() {
           {isResearcher && activeTab === 1 && (
             <motion.div className="api-ref" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ maxWidth: "800px" }}>
               {/* Panduan cepat: orientasi "mulai dari mana" sebelum detail teknis. */}
-              <div style={{ marginBottom: "32px", padding: "22px 24px", border: "1px solid var(--line)", borderLeft: "4px solid var(--ocean-dark)", borderRadius: 12, background: "var(--surface-soft)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                  <Icon name="rocket_launch" style={{ color: "var(--ocean-dark)", fontSize: 22 }} />
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>Cara Pakai API — 3 Langkah</div>
-                </div>
+              <section className="api-quickstart" aria-labelledby="api-quickstart-title">
+                <h2 id="api-quickstart-title">Mulai menggunakan API</h2>
                 <ol className="api-steps">
                   <li>
-                    <strong>Buat &amp; salin API Key.</strong> Klik <strong>“Buat Kunci”</strong> pada kartu <em>Kredensial API Aktif</em> di bagian atas halaman ini. Kunci penuh (mis. <code>spr_xxxxxxxx</code>) <strong>hanya tampil sekali</strong> — salin &amp; simpan segera.
+                    <strong>Siapkan kunci akses.</strong> Gunakan tombol “Buat Kunci” di bagian atas. Salin kunci saat ditampilkan; kunci penuh hanya bisa dilihat sekali.
                   </li>
                   <li>
-                    <strong>Sertakan key di setiap permintaan</strong> lewat header berikut:
+                    <strong>Sertakan kunci pada permintaan.</strong> Gunakan salah satu header berikut:
                     <div className="api-step-codes">
                       <code>{apiReference?.authentication.header ?? "X-API-Key: spr_xxx"}</code>
                       {apiReference?.authentication.alternative && (
@@ -589,10 +587,10 @@ export function ResearchPortalPage() {
                     </div>
                   </li>
                   <li>
-                    <strong>Panggil endpoint</strong> di bawah Base URL <code>{apiReference?.base_path ?? "/api/v1"}</code>. Contoh <code>curl</code> siap-pakai ada di akhir halaman.
+                    <strong>Pilih endpoint.</strong> Gunakan alamat dasar <code>{apiReference?.base_path ?? "/api/v1"}</code>. Contoh permintaan tersedia di setiap endpoint dan di akhir halaman ini.
                   </li>
                 </ol>
-              </div>
+              </section>
 
               <div style={{ marginBottom: "32px" }}>
                 <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "var(--ink)" }}>Base URL</div>
@@ -604,7 +602,7 @@ export function ResearchPortalPage() {
               {/* Autentikasi eksplisit: sebelumnya hanya tersirat di contoh curl. */}
               <div style={{ marginBottom: "32px" }}>
                 <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "var(--ink)" }}>Autentikasi</div>
-                <div style={{ padding: "16px 20px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", fontSize: "13px", color: "var(--ink-soft)", lineHeight: 1.6 }}>
+                <div className="api-reference-copy">
                   Setiap permintaan wajib menyertakan API Key kamu di header:
                   <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                     <div><span className="api-inline-code">{apiReference?.authentication.header ?? "X-API-Key: spr_xxx"}</span></div>
@@ -612,19 +610,17 @@ export function ResearchPortalPage() {
                       <div>atau <span className="api-inline-code">{apiReference.authentication.alternative}</span></div>
                     )}
                   </div>
-                  <div style={{ marginTop: 12, fontSize: 12.5 }}>
-                    <Icon name="info" style={{ fontSize: 15, verticalAlign: "-2px", color: "var(--ocean-dark)" }} /> Belum punya key? Buat lewat tombol <strong>“Buat Kunci”</strong> di kartu <em>Kredensial API Aktif</em>. Ganti kunci kapan saja dengan <strong>“Regenerasi”</strong> (kunci lama otomatis dicabut).
-                  </div>
+                  <p className="rp-key-hint">Buat kunci melalui bagian “Kunci akses API”. Regenerasi akan mencabut kunci sebelumnya.</p>
                 </div>
               </div>
 
               <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "16px", color: "var(--ink)" }}>Endpoint Tersedia</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "40px" }}>
                 {(apiReference?.endpoints ?? []).map((ep, i) => (
-                  <div key={i} style={{ padding: "20px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)" }}>
+                  <section key={i} className="api-endpoint">
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginBottom: ep.example_request ? "14px" : 0 }}>
-                      <div style={{ background: "var(--green-badge-bg)", color: "var(--green-badge)", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>{ep.method}</div>
-                      <div>
+                      <div style={{ background: "var(--green-badge-bg)", color: "var(--green-text)", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>{ep.method}</div>
+                      <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                         <div style={{ fontFamily: "monospace", fontSize: "13px", color: "var(--ocean-dark)", marginBottom: "6px", fontWeight: 600 }}>{ep.path}</div>
                         <div style={{ fontSize: "13px", color: "var(--ink-soft)", lineHeight: 1.5 }}>{ep.description} Scope: <code>{ep.scope}</code></div>
                         {ep.query && Object.keys(ep.query).length > 0 && (
@@ -651,14 +647,14 @@ export function ResearchPortalPage() {
                         </div>
                       </details>
                     )}
-                  </div>
+                  </section>
                 ))}
               </div>
 
               {apiReference?.rate_limit && (
                 <div style={{ marginBottom: "32px" }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "12px", color: "var(--ink)" }}>Batas Permintaan (Rate Limit)</div>
-                  <div style={{ padding: "16px 20px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", fontSize: "13px", color: "var(--ink-soft)", lineHeight: 1.6 }}>
+                  <div className="api-reference-copy">
                     <strong style={{ color: "var(--ink)" }}>{apiReference.rate_limit.per_minute} permintaan / menit</strong> ({apiReference.rate_limit.scope}). {apiReference.rate_limit.note}
                     <div style={{ marginTop: "8px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {apiReference.rate_limit.headers.map((h) => <code key={h} style={{ fontSize: "11px", background: "var(--surface-muted)", padding: "2px 8px", borderRadius: "4px" }}>{h}</code>)}
@@ -670,7 +666,7 @@ export function ResearchPortalPage() {
               {apiReference?.error_format && (
                 <div style={{ marginBottom: "32px" }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "12px", color: "var(--ink)" }}>Format Error</div>
-                  <div style={{ padding: "16px 20px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)" }}>
+                  <div className="api-reference-copy">
                     <pre style={{ background: "var(--footer-bg)", borderRadius: 6, padding: "12px", color: "var(--footer-text)", fontFamily: "monospace", fontSize: "12px", margin: "0 0 12px", overflowX: "auto" }}>{JSON.stringify(apiReference.error_format.shape, null, 2)}</pre>
                     <div className="api-error-codes">
                       {Object.entries(apiReference.error_format.codes).map(([code, desc]) => (
@@ -771,7 +767,7 @@ export function ResearchPortalPage() {
               )}
 
               {!usageLoading && !usage && (
-                <div className="alert info"><Icon name="info" /> Statistik penggunaan belum tersedia.</div>
+                <InlineNotice>Statistik penggunaan belum tersedia.</InlineNotice>
               )}
             </motion.div>
           )}
@@ -792,7 +788,7 @@ export function ResearchPortalPage() {
                 const entries = Object.entries(groups);
 
                 if (entries.length === 0) {
-                  return <div className="alert info"><Icon name="info" /> Belum ada dataset untuk ditampilkan lisensinya.</div>;
+                  return <InlineNotice>Belum ada dataset untuk ditampilkan lisensinya.</InlineNotice>;
                 }
 
                 return (

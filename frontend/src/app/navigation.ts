@@ -10,7 +10,7 @@ export const navItems: NavItem[] = [
   { href: "#/awam", icon: "person_pin_circle", label: "Mode Awam", roles: ["guest", "warga", "admin"] },
   { href: "#/onboarding", icon: "help", label: "Panduan", roles: ["guest", "warga", "admin"] },
   { href: "#/reports", icon: "add_location_alt", label: "Lapor", roles: ["warga", "admin"] },
-  { href: "#/history", icon: "history", label: "Riwayat Laporan", roles: ["warga", "peneliti", "admin"] },
+  { href: "#/history", icon: "history", label: "Riwayat Laporan", roles: ["warga", "admin"] },
   { href: "#/operator", icon: "assignment_turned_in", label: "Operator", roles: ["admin"] },
   // Peran bpbd_provinsi dihapus saat penyederhanaan 5 peran -> 3, dan halaman
   // ini sempat ikut kehilangan rutenya. Pantauannya masih dibutuhkan, jadi

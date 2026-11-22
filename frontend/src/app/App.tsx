@@ -9,6 +9,7 @@ import { SESSION_CHANGED_EVENT, getCurrentUser, isLoggedIn, verifySession } from
 
 import { OAuthCallbackPage } from "../features/auth/OAuthCallbackPage";
 import { ForgotPasswordPage } from "../features/auth/ForgotPasswordPage";
+import { dashboardHashForRole } from "../shared/constants/roles";
 
 // Halaman fitur di-lazy-load agar bundle awal ringan: library berat (maplibre-gl
 // pada peta/laporan) & kode tiap rute hanya diunduh saat halamannya dibuka.
@@ -76,7 +77,7 @@ function guardRedirect(route: string): string | null {
     if (!isUserLoggedIn || !user) {
       return navItem.roles.includes("guest") ? null : "#/login";
     }
-    if (!navItem.roles.includes(user.role)) return "#/";
+    if (!navItem.roles.includes(user.role)) return user.role === "peneliti" ? dashboardHashForRole(user.role) : "#/";
   }
 
   return null;
