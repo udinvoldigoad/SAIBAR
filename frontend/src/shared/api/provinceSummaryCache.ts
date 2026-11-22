@@ -92,24 +92,41 @@ export async function fetchProvinceSummary(query = ""): Promise<ProvinceSummaryD
 
 export type ProvinceTrendRow = NonNullable<ProvinceSummaryData["trend_30_days"]>[number];
 
-let publicTrendCache: { data: ProvinceTrendRow[]; timestamp: number } | null = null;
+/** Baris /public/province/forecast — superset dari ProvinceTrendRow. */
+export interface PublicForecastRow extends ProvinceTrendRow {
+  region_count: number;
+  medium_count?: number;
+}
+
+let publicTrendCache: { data: PublicForecastRow[]; timestamp: number } | null = null;
+let publicTrendInFlight: Promise<PublicForecastRow[]> | null = null;
 
 /**
  * Tren peluang rob 30 hari untuk halaman publik (landing). Memakai
  * /public/province/forecast yang anonim — /dashboard/province/summary
- * khusus admin dan akan 401/403 untuk tamu.
+ * khusus admin dan akan 401/403 untuk tamu. Hero & grafik landing memanggil
+ * ini bersamaan saat halaman dimuat; request yang sedang berjalan dipakai
+ * bersama agar tidak dobel.
  */
-export async function fetchPublicProvinceTrend(): Promise<ProvinceTrendRow[]> {
+export async function fetchPublicProvinceTrend(): Promise<PublicForecastRow[]> {
   if (publicTrendCache && Date.now() - publicTrendCache.timestamp < CACHE_TTL_MS) {
     return publicTrendCache.data;
   }
-  const res = await api<{ data: ProvinceTrendRow[] }>("/public/province/forecast");
-  publicTrendCache = { data: res.data, timestamp: Date.now() };
-  return res.data;
+  if (!publicTrendInFlight) {
+    publicTrendInFlight = api<{ data: PublicForecastRow[] }>("/public/province/forecast")
+      .then((res) => {
+        publicTrendCache = { data: res.data, timestamp: Date.now() };
+        return res.data;
+      })
+      .finally(() => {
+        publicTrendInFlight = null;
+      });
+  }
+  return publicTrendInFlight;
 }
 
 /** Kembalikan tren publik dari cache (bisa null). Tidak melakukan fetch. */
-export function getPublicProvinceTrendCached(): ProvinceTrendRow[] | null {
+export function getPublicProvinceTrendCached(): PublicForecastRow[] | null {
   if (publicTrendCache && Date.now() - publicTrendCache.timestamp < CACHE_TTL_MS) return publicTrendCache.data;
   return null;
 }

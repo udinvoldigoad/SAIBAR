@@ -1,0 +1,172 @@
+/* Prakiraan 7 hari di hero — panel kaca, batang harian ala tabel pasang-surut. */
+.hf {
+  --hf-panel: rgba(255, 255, 255, 0.72);
+  --hf-border: rgba(15, 23, 42, 0.08);
+  --hf-track: rgba(15, 23, 42, 0.06);
+  --hf-ink: var(--ink, #0f172a);
+  --hf-soft: var(--ink-soft, #475569);
+
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 22px 16px;
+  text-align: left;
+  background: var(--hf-panel);
+  border: 1px solid var(--hf-border);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+[data-theme="dark"] .hf {
+  --hf-panel: rgba(15, 23, 42, 0.72);
+  --hf-border: rgba(255, 255, 255, 0.08);
+  --hf-track: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.hf-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.hf-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ocean-dark, #0284c7);
+}
+
+/* `.hero-section p` di PortalPage ikut mengenai paragraf ini — ditimpa. */
+.hero-section .hf .hf-summary {
+  margin: 0;
+  max-width: none;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--hf-soft);
+}
+.hf-summary strong { color: var(--hf-ink); font-weight: 700; }
+
+.hf-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ocean-dark, #0284c7);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.hf-link .material-symbols-outlined { font-size: 18px; transition: transform 0.2s ease; }
+.hf-link:hover .material-symbols-outlined { transform: translateX(3px); }
+
+.hf-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hf-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px 6px;
+  border-radius: 12px;
+  cursor: default;
+  transition: background 0.2s ease;
+}
+.hf-day:hover { background: var(--hf-track); }
+.hf-day.is-today {
+  background: var(--hf-track);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hf-color) 45%, transparent);
+}
+
+.hf-dow {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--hf-soft);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.hf-day.is-today .hf-dow { color: var(--hf-ink); }
+
+.hf-bar {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 64px;
+  border-radius: 999px;
+  background: var(--hf-track);
+  overflow: hidden;
+}
+.hf-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(to top, var(--hf-color), color-mix(in srgb, var(--hf-color) 55%, white));
+  transform-origin: bottom;
+  animation: hf-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.35s + var(--hf-i) * 0.06s);
+}
+
+.hf-val {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+.hf-date {
+  font-size: 0.7rem;
+  color: var(--hf-soft);
+  white-space: nowrap;
+}
+
+.hf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hf-border);
+  font-size: 0.72rem;
+  color: var(--hf-soft);
+}
+.hf-scale { display: inline-flex; flex-wrap: wrap; gap: 12px; }
+.hf-scale span { display: inline-flex; align-items: center; gap: 5px; }
+.hf-scale i { width: 8px; height: 8px; border-radius: 2px; }
+
+@keyframes hf-rise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@media (max-width: 560px) {
+  .hf { padding: 16px 14px 12px; border-radius: 16px; }
+  .hf-head { flex-direction: column; gap: 10px; }
+  .hf-days { gap: 4px; }
+  .hf-bar { width: 10px; height: 52px; }
+  .hf-dow { font-size: 0.68rem; }
+  .hf-val { font-size: 0.72rem; }
+  .hf-date { display: none; }
+  .hf-legend-note { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-fill { animation: none; }
+}

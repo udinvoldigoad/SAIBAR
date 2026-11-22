@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Icon } from "../shared/components/Icon";
 import { MapPreview } from "../shared/components/MapPreview";
 import { ProvinceTrendChart } from "../shared/components/ProvinceTrendChart";
+import { ThemeToggle } from "../shared/components/ThemeToggle";
+import { LandingFooter } from "./LandingFooter";
+import { HeroForecast } from "./HeroForecast";
+import { useTheme } from "../shared/utils/useTheme";
 import { motion, AnimatePresence } from "framer-motion";
 import { dashboardHashForRole } from "../shared/constants/roles";
 import { getCurrentUser, isLoggedIn } from "../shared/auth/session";
@@ -26,18 +30,9 @@ const faqData = [
 
 export function PortalPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [isDarkMode, setDarkMode] = useState(() => localStorage.getItem("saibar-theme") === "dark" || document.documentElement.getAttribute("data-theme") === "dark");
+  const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.setAttribute("data-theme", "dark");
-      localStorage.setItem("saibar-theme", "dark");
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-      localStorage.setItem("saibar-theme", "light");
-    }
-  }, [isDarkMode]);
 
   // Header solid saat di puncak, berubah jadi frosted-blur (bukan transparan
   // penuh) begitu halaman digulir sedikit.
@@ -79,7 +74,6 @@ export function PortalPage() {
           --bg-overlay-start: rgba(246, 249, 252, 0.7);
           --bg-overlay-end: rgba(246, 249, 252, 1);
           --bg-marquee: rgba(255, 255, 255, 0.62);
-          --bg-footer: var(--footer-bg);
         }
 
         [data-theme="dark"] .saibar-landing-root {
@@ -96,7 +90,6 @@ export function PortalPage() {
           --bg-overlay-start: rgba(2, 6, 23, 0.85);
           --bg-overlay-end: rgba(2, 6, 23, 1);
           --bg-marquee: rgba(15, 23, 42, 0.62);
-          --bg-footer: var(--footer-bg);
         }
 
         /* Component-Specific Dark Mode Overrides */
@@ -229,10 +222,28 @@ export function PortalPage() {
         .hero-section {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 164px 40px 76px;
+          padding: 140px 40px 56px;
           text-align: center;
           position: relative;
           z-index: 10;
+          /* Hero penuh satu layar, jadi judul section berikutnya tidak
+             terpotong setengah di batas bawah layar. */
+          min-height: 100svh;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        /* Selubung lembut di belakang teks agar paragraf tetap kontras di atas
+           ilustrasi pantai yang ramai, tanpa menutupi ilustrasinya. */
+        .hero-section::before {
+          content: "";
+          position: absolute;
+          inset: 60px -10% 0;
+          z-index: -1;
+          pointer-events: none;
+          background: radial-gradient(ellipse 55% 50% at 50% 42%, var(--bg-overlay-end), transparent 72%);
+          opacity: 0.75;
         }
         .hero-section h1 {
           font-size: clamp(2.15rem, 4vw, 3.75rem);
@@ -253,38 +264,18 @@ export function PortalPage() {
           max-width: 680px;
           margin: 0 auto 34px;
         }
-        .hero-kicker {
-          align-items: center;
-          background: rgba(255, 255, 255, .74);
-          border: 1px solid rgba(15, 23, 42, .08);
-          border-radius: 999px;
-          box-shadow: 0 14px 40px rgba(15, 23, 42, .07);
-          color: var(--ink-primary);
-          display: inline-flex;
-          justify-content: center;
-          margin-bottom: 24px;
-          padding: 8px 17px;
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-        }
-        .kicker-title {
-          font-size: .86rem;
-          font-weight: 700;
-          letter-spacing: 0;
-        }
-        [data-theme="dark"] .hero-kicker {
-          background: rgba(15, 23, 42, .74);
-          border-color: rgba(255, 255, 255, .1);
-          box-shadow: 0 14px 38px rgba(0, 0, 0, .3);
-        }
         .hero-actions {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 16px;
-          margin-bottom: 72px;
+          margin-bottom: 40px;
         }
+        .hero-actions .material-symbols-outlined { font-size: 19px; }
         .btn-hero-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
           font-size: 0.95rem;
           font-weight: 600;
           color: var(--ink-inverse);
@@ -731,7 +722,8 @@ export function PortalPage() {
           .hero-section h1 { font-size: 1.75rem !important; line-height: 1.2; margin-bottom: 20px; }
           .hero-section p { font-size: 1rem !important; margin-bottom: 24px; padding: 0 10px; }
           .hero-actions { flex-direction: column; gap: 12px !important; margin-bottom: 24px !important; }
-          .hero-actions > a { width: 100%; box-sizing: border-box; text-align: center; }
+          .hero-actions > a { width: 100%; box-sizing: border-box; text-align: center; justify-content: center; }
+          .hero-section { min-height: 0; }
           /* Pita marquee dipadatkan (tinggi 160px sebelumnya menyisakan band
              kosong ~96px) + margin bawah dipangkas, dan header "Portal Sistem
              Terpadu" disembunyikan, agar kartu Public Access naik mengisi
@@ -793,14 +785,7 @@ export function PortalPage() {
           .landing-faq-grid { margin-bottom: 64px !important; }
           .landing-footer { margin-top: 72px; padding: 36px 20px 0; }
           .footer-links { text-align: center !important; }
-          /* Footer mobile: kontak rata kiri (bukan rata kanan yang ragged),
-             padding & jarak lebih ringkas, blok menumpuk rapi. */
-          .site-footer { padding: 44px 22px 30px !important; }
-          .site-footer-inner { gap: 26px !important; flex-direction: column; }
-          .footer-contact-col { text-align: left !important; min-width: 0 !important; }
-          .footer-bottom { margin-top: 30px !important; }
         }
-        .footer-contact-link:hover { color: var(--ink-inverse) !important; }
       `}</style>
 
       {/* Grid Ambient Background Pattern */}
@@ -818,54 +803,47 @@ export function PortalPage() {
           <a href="#panduan">Panduan</a>
         </nav>
         <div className="header-actions">
-          <button 
-            type="button" 
-            aria-label="Ganti Tema" 
-            onClick={() => setDarkMode(!isDarkMode)}
-            style={{ background: 'transparent', border: 'none', color: 'var(--ink-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name={isDarkMode ? "light_mode" : "dark_mode"} />
-          </button>
+          <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
           <a className="btn-nav-primary" href={userIsLoggedIn ? dashboardRoute : "#/login"}>{userIsLoggedIn ? "Dashboard" : "Login"}</a>
         </div>
       </header>
 
       {/* Cinematic Center Hero */}
       <section className="hero-section">
-        <motion.span
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="hero-kicker"
-        >
-          <span className="kicker-title">WebGIS Kebencanaan Provinsi Lampung</span>
-        </motion.span>
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          Sistem Informasi Risiko Banjir Rob Terpadu Provinsi Lampung.
+          Pantau risiko <span className="highlight">banjir rob</span> di pesisir Lampung, setiap hari.
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
         >
-          Peta digital interaktif untuk memantau prediksi risiko dan melaporkan kejadian banjir rob di kawasan pesisir Provinsi Lampung secara langsung.
+          SAIBAR memprediksi peluang rob di tiap kelurahan pesisir Provinsi Lampung dan menampung laporan kejadian dari warga secara langsung.
         </motion.p>
         <motion.div
           className="hero-actions"
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
         >
-          <a className="btn-hero-primary" href="#/map">
+          <a className="btn-hero-primary" href="#/awam">
+            <Icon name="my_location" /> Cek Risiko di Lokasi Saya
+          </a>
+          <a className="btn-hero-secondary" href="#/map">
             Buka Peta Risiko
           </a>
-          <a className="btn-hero-secondary" href="#/awam">
-            Akses Mode Awam
-          </a>
+        </motion.div>
+        <motion.div
+          className="hero-forecast-wrap"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
+        >
+          <HeroForecast />
         </motion.div>
       </section>
 
@@ -1155,24 +1133,10 @@ export function PortalPage() {
         </motion.div>
       </section>
 
-      {/* Minimal Landing Footer */}
-      <footer className="site-footer" style={{ background: "var(--bg-footer)", color: "var(--footer-text)", padding: "60px 40px 40px", marginTop: "auto", borderTop: "1px solid var(--border-color)" }}>
-        <div className="site-footer-inner" style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", flexWrap: "wrap", gap: "40px", justifyContent: "space-between" }}>
-          <div className="footer-brand-col" style={{ lineHeight: '1.6', maxWidth: "400px" }}>
-            <strong style={{ fontSize: '1.15rem', color: 'var(--ink-inverse)', letterSpacing: '-0.01em' }}>SAIBAR</strong>
-            <p style={{ margin: '8px 0 0', fontSize: '0.92rem', color: 'var(--footer-muted)', lineHeight: 1.6 }}>Sistem Informasi Risiko Banjir Rob Terpadu Provinsi Lampung.</p>
-          </div>
-          <div className="footer-contact-col" style={{ display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'right', minWidth: "260px" }}>
-            <strong style={{ color: "var(--ink-inverse)", fontSize: '0.95rem' }}>Pusdalops BPBD Provinsi Lampung</strong>
-            <span style={{ fontSize: '0.9rem', color: 'var(--footer-muted)' }}>Jl. Beringin Raya No. 1, Teluk Betung, Bandar Lampung</span>
-            <a href="mailto:tanggap@bpbd.lampungprov.go.id" className="footer-contact-link" style={{ fontSize: '0.9rem', color: 'var(--footer-text)', textDecoration: 'none', wordBreak: 'break-word' }}>tanggap@bpbd.lampungprov.go.id</a>
-            <a href="tel:+62721123456" className="footer-contact-link" style={{ fontSize: '0.9rem', color: 'var(--footer-text)', textDecoration: 'none' }}>(0721) 123456</a>
-          </div>
-        </div>
-        <div className="footer-bottom" style={{ maxWidth: "1200px", margin: "40px auto 0", paddingTop: "24px", borderTop: "1px solid var(--footer-line)", textAlign: "center", fontSize: "0.85rem", color: "var(--footer-muted)" }}>
-          SAIBAR &copy; 2026. Institut Teknologi Sumatera
-        </div>
-      </footer>
+      <LandingFooter
+        accessHref={userIsLoggedIn ? dashboardRoute : "#/login"}
+        accessLabel={userIsLoggedIn ? "Dashboard" : "Masuk Dashboard"}
+      />
     </div>
   );
 }

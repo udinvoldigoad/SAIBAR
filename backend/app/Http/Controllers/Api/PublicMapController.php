@@ -258,7 +258,7 @@ final class PublicMapController
         // di-cache lebih lama daripada /public/map — prediksi hanya berubah
         // sekali sehari saat pipeline ML jalan.
         $rows = Cache::remember(
-            'public-province-forecast:'.md5(json_encode($filters).$start),
+            'public-province-forecast:v2:'.md5(json_encode($filters).$start),
             now()->addMinutes(30),
             fn (): array => DB::table('predictions')
                 ->join('regions', 'predictions.region_id', '=', 'regions.id')
@@ -267,6 +267,7 @@ final class PublicMapController
                     COUNT(DISTINCT predictions.region_id) AS region_count,
                     COUNT(DISTINCT CASE WHEN predictions.risk_class = 'sangat_tinggi' THEN predictions.region_id END) AS critical_count,
                     COUNT(DISTINCT CASE WHEN predictions.risk_class IN ('tinggi', 'sangat_tinggi') THEN predictions.region_id END) AS high_risk_count,
+                    COUNT(DISTINCT CASE WHEN predictions.risk_class = 'sedang' THEN predictions.region_id END) AS medium_count,
                     AVG(predictions.risk_probability) AS avg_probability,
                     MAX(predictions.risk_probability) AS max_probability
                 ")
@@ -283,6 +284,7 @@ final class PublicMapController
                     'region_count' => (int) $row->region_count,
                     'critical_count' => (int) $row->critical_count,
                     'high_risk_count' => (int) $row->high_risk_count,
+                    'medium_count' => (int) $row->medium_count,
                     'avg_probability' => round((float) $row->avg_probability, 2),
                     'max_probability' => round((float) $row->max_probability, 2),
                 ])

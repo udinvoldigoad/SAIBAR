@@ -7,6 +7,8 @@ import { useToast } from "./Toast";
 import { api } from "../api/client";
 import { roleLabels } from "../constants/roles";
 import { clearSession, getCurrentUser, isLoggedIn } from "../auth/session";
+import { useTheme } from "../utils/useTheme";
+import { ThemeToggle } from "./ThemeToggle";
 
 const SIDEBAR_STORAGE_KEY = "saibar-sidebar";
 
@@ -44,7 +46,7 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isNotificationOpen, setNotificationOpen] = useState(false);
-  const [isDarkMode, setDarkMode] = useState(() => localStorage.getItem("saibar-theme") === "dark");
+  const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState<InboxItem[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -54,16 +56,6 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
     await api("/auth/logout", { method: "POST" }).catch(() => {});
     clearSession();
   }, []);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.setAttribute("data-theme", "dark");
-      localStorage.setItem("saibar-theme", "dark");
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-      localStorage.setItem("saibar-theme", "light");
-    }
-  }, [isDarkMode]);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, isSidebarOpen ? "open" : "closed");
@@ -244,14 +236,7 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
           </div>
           
           <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button 
-              type="button" 
-              className="notification-trigger" 
-              aria-label="Ganti Tema" 
-              onClick={() => setDarkMode(!isDarkMode)}
-            >
-              <Icon name={isDarkMode ? "light_mode" : "dark_mode"} />
-            </button>
+            <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
             {isUserLoggedIn ? (
               <div className="notification-menu" ref={notificationRef}>
                 <button
