@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { isChunkLoadError, reloadOnceForChunkError } from "../utils/chunkReload";
 
 type Props = { children: ReactNode };
 type State = { hasError: boolean; message?: string };
@@ -16,6 +17,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Chunk halaman gagal diunduh → muat ulang sekali otomatis (cadangan bila
+    // event vite:preloadError tidak terpicu). Bila sudah dicoba dalam 30 detik
+    // terakhir, halaman error di bawah tetap tampil.
+    if (isChunkLoadError(error) && reloadOnceForChunkError()) return;
     // Log ke konsol untuk diagnosis; bisa diarahkan ke layanan monitoring nanti.
     console.error("[SAIBAR] Uncaught UI error:", error, info.componentStack);
   }
