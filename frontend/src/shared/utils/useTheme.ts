@@ -54,10 +54,18 @@ export function useTheme() {
         return;
       }
 
+      // Selama tirai lingkaran membuka, tampilan baru adalah render "live":
+      // transisi warna CSS di puluhan elemen (transition: all, background,
+      // dsb.) ikut berjalan sehingga seluruh layar digambar ulang tiap frame.
+      // Dimatikan sementara — warna baru langsung jadi, tirai yang
+      // menganimasikan pergantiannya (tampilan akhirnya tetap sama).
+      const root = document.documentElement;
+      root.classList.add("theme-switching");
       const transition = document.startViewTransition(() => {
         flushSync(() => setIsDark(next));
         applyTheme(next);
       });
+      void transition.finished.finally(() => root.classList.remove("theme-switching"));
 
       // Jari-jari sampai sudut layar terjauh dari titik asal.
       const radius = Math.hypot(

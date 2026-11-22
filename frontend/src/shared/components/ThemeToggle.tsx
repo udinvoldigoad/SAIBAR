@@ -6,7 +6,7 @@
  * perahu berlayar ke sisi kiri. Ombak dan perahu bergerak pelan terus-menerus.
  */
 import type { MouseEvent } from "react";
-import type { ThemeOrigin } from "../utils/useTheme";
+import { useTheme, type ThemeOrigin } from "../utils/useTheme";
 import "./ThemeToggle.css";
 
 interface ThemeToggleProps {
@@ -95,4 +95,15 @@ export function ThemeToggle({ isDark, onToggle, className }: ThemeToggleProps) {
       </span>
     </button>
   );
+}
+
+/**
+ * Toggle tema yang menyimpan status temanya sendiri. Dipakai header landing &
+ * AppShell: saat tema berganti hanya tombol ini yang di-render ulang (di dalam
+ * flushSync transisi), bukan seluruh halaman — render ulang halaman penuh
+ * itulah yang membuat transisi tersendat di HP.
+ */
+export function ThemeToggleControl({ className }: { className?: string }) {
+  const { isDark, toggleTheme } = useTheme();
+  return <ThemeToggle isDark={isDark} onToggle={toggleTheme} className={className} />;
 }

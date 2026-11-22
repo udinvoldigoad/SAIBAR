@@ -38,6 +38,21 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
   const [error, setError] = useState(false);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  // Lebar wadah sebenarnya. Dulu kanvas selalu 800 unit lalu diperkecil ke
+  // lebar layar, sehingga di HP (~320px) teks sumbu menyusut jadi ~4px dan
+  // tak terbaca. Kini kanvas = lebar wadah, jadi ukuran teks tetap asli.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [boxWidth, setBoxWidth] = useState(800);
+  useEffect(() => {
+    const node = wrapRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = Math.round(entry.contentRect.width);
+      if (next > 0) setBoxWidth(next);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loading, error]);
 
   const trendRows = propSummary ? (propSummary.trend_30_days ?? []) : publicTrend;
   // Halaman Pantauan Provinsi khusus admin — jangan tawarkan tautannya ke tamu.
@@ -96,8 +111,10 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
     );
   }
 
-  const svgW = 800, svgH = 265;
-  const pad = { top: 30, right: 24, bottom: 30, left: 48 };
+  const narrow = boxWidth < 560;
+  const svgW = Math.max(280, Math.min(boxWidth, 800));
+  const svgH = narrow ? 230 : 265;
+  const pad = narrow ? { top: 30, right: 10, bottom: 30, left: 36 } : { top: 30, right: 24, bottom: 30, left: 48 };
   const chartW = svgW - pad.left - pad.right;
   const chartH = svgH - pad.top - pad.bottom;
   const data = trendData;
@@ -133,15 +150,28 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
   const primaryColor = "#2563eb";
   const secondaryColor = "var(--high, #f97316)";
 
-  const xTickStep = Math.max(1, Math.floor(data.length / 5));
-  const xTicks = data.map((_, i) => i).filter((i) => i % xTickStep === 0 || i === data.length - 1);
+  // Layar sempit: label tanggal tiap ~7 hari agar tidak saling tindih.
+  const xTickStep = narrow ? 7 : Math.max(1, Math.floor(data.length / 5));
+  // Tanggal terakhir selalu ditampilkan; tick reguler yang terlalu dekat
+  // dengannya dibuang agar labelnya tidak bertumpuk ("21 Des22 Des").
+  const lastIdx = data.length - 1;
+  const xTicks = data
+    .map((_, i) => i)
+    .filter((i) => i === lastIdx || (i % xTickStep === 0 && lastIdx - i >= Math.ceil(xTickStep / 2)));
   const todayIdx = data.findIndex((d) => d.isToday);
+
+  // Puncak 30 hari: hari dengan peluang maksimum tertinggi — informasi yang
+  // tidak ada di ringkasan 7 hari (hero) karena bisa jatuh di minggu depan.
+  const peakDay = data.reduce<(typeof data)[number] | null>(
+    (best, d) => (d.hasData && (!best || d.maxProb > best.maxProb) ? d : best),
+    null,
+  );
 
   const hovered = hoverIdx !== null ? data[hoverIdx] : null;
   const hoverX = hoverIdx !== null ? xOf(hoverIdx) : 0;
   const hoverY = hovered ? yOf(hovered.avgProb) : 0;
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handlePointer = (e: React.PointerEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
     if (!svg) return;
     const pt = svg.createSVGPoint();
@@ -154,12 +184,12 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
       const d = Math.abs(xOf(i) - svgP.x);
       if (d < minD) { minD = d; closestI = i; }
     });
-    if (minD < 30) setHoverIdx(closestI);
+    if (minD < (narrow ? 20 : 30)) setHoverIdx(closestI);
     else setHoverIdx(null);
   };
 
   return (
-    <div>
+    <div ref={wrapRef}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", flexWrap: "wrap", gap: "16px" }}>
         <div>
@@ -171,8 +201,21 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
         {headerRight && <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>{headerRight}</div>}
       </div>
 
+      {peakDay && (
+        <div className="trend-peak" style={{ display: "inline-flex", alignItems: "flex-start", gap: 8, margin: "0 0 14px", padding: "8px 12px", borderRadius: 10, background: "var(--surface-soft)", fontSize: 13, color: "var(--ink-soft)" }}>
+          <Icon name="flag" style={{ fontSize: 17, color: "var(--high, #f97316)", flex: "none", marginTop: 1 }} />
+          <span>
+            Puncak 30 hari ke depan:{" "}
+            <strong style={{ color: "var(--ink)" }}>
+              {peakDay.date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}
+            </strong>
+            , peluang tertinggi <strong style={{ color: "var(--ink)" }}>{Math.round(peakDay.maxProb)}%</strong>
+          </span>
+        </div>
+      )}
+
       {/* Legend */}
-      <div style={{ display: "flex", gap: "20px", fontSize: "12px", fontWeight: 600, marginBottom: "14px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", fontSize: "12px", fontWeight: 600, marginBottom: "14px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <div style={{ width: "12px", height: "12px", background: "#2563eb", borderRadius: "3px" }}></div>
           <span style={{ color: "var(--ink)" }}>Rata-rata Peluang Wilayah</span>
@@ -187,9 +230,10 @@ export function ProvinceTrendChart({ summary: propSummary, hideLink, headerRight
       <svg
         ref={svgRef}
         viewBox={`0 0 ${svgW} ${svgH}`}
-        style={{ width: "100%", height: "auto", maxHeight: 330, cursor: "crosshair", overflow: "visible" }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoverIdx(null)}
+        style={{ width: "100%", height: "auto", maxHeight: 330, cursor: "crosshair", overflow: "visible", touchAction: "pan-y" }}
+        onPointerMove={handlePointer}
+        onPointerDown={handlePointer}
+        onPointerLeave={() => setHoverIdx(null)}
       >
         <defs>
           <linearGradient id="landingTrendAreaGrad" x1="0" y1="0" x2="0" y2="1">

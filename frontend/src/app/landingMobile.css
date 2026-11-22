@@ -1,0 +1,157 @@
+/* ── Tampilan HP landing (≤ 768px) ──────────────────────────────────────
+ * Satu sumber aturan mobile untuk landing:
+ * - jarak tepi seragam 20px, tanpa inset ganda section + kartu;
+ * - skala huruf: hero > judul section > judul kartu > teks;
+ * - jarak antar section seragam ~48px, judul rata kiri (kecuali hero);
+ * - konten ganda (grafik 30 hari, pratinjau peta kedua) disembunyikan.
+ * Banyak elemen landing memakai style inline, jadi sebagian aturan perlu
+ * !important. Desktop tidak terpengaruh.
+ */
+
+/* Tombol & panel menu ☰ (hanya HP) */
+.landing-menu-btn { display: none; }
+.landing-menu-panel { display: none; }
+
+@media (max-width: 768px) {
+  .saibar-landing-root { --m-gutter: 20px; --m-gap: 48px; }
+
+  /* ── Header + menu ── */
+  .landing-menu-btn {
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--ink-primary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+  }
+  .landing-menu-btn .material-symbols-outlined { font-size: 22px; }
+  .landing-menu-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    display: grid;
+    gap: 2px;
+    left: var(--m-gutter);
+    padding: 8px;
+    position: fixed;
+    right: var(--m-gutter);
+    top: 72px;
+    z-index: 120;
+  }
+  .landing-menu-panel[hidden] { display: none; }
+  .landing-menu-panel a {
+    align-items: center;
+    border-radius: 10px;
+    color: var(--ink-primary);
+    display: flex;
+    font-size: 0.98rem;
+    font-weight: 600;
+    gap: 12px;
+    padding: 12px;
+    text-decoration: none;
+  }
+  .landing-menu-panel a:active,
+  .landing-menu-panel a:hover { background: var(--surface-soft); }
+  .landing-menu-panel .material-symbols-outlined { color: var(--ocean-dark); font-size: 20px; }
+  .landing-header-full { padding: 0 var(--m-gutter) !important; }
+  .landing-header-full .header-actions { gap: 8px !important; }
+
+  /* ── Skala huruf ── */
+  .saibar-landing-root .hero-section h1 { font-size: 2rem !important; line-height: 1.15 !important; text-wrap: balance; }
+  .saibar-landing-root .landing-word-heading,
+  .saibar-landing-root .bento-header-wrap h2 {
+    font-size: 1.6rem !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.2 !important;
+    margin-bottom: 12px !important;
+  }
+  .saibar-landing-root .bento-card-el h3 { font-size: 1.3rem !important; margin-bottom: 8px !important; }
+  .saibar-landing-root .bento-header-wrap p,
+  .saibar-landing-root .bento-card-el p,
+  .saibar-landing-root .guide-section p {
+    font-size: 0.98rem !important;
+    line-height: 1.6 !important;
+  }
+
+  /* ── Jarak tepi & antar section ── */
+  .saibar-landing-root .hero-section { padding-left: var(--m-gutter) !important; padding-right: var(--m-gutter) !important; padding-bottom: 8px !important; }
+  .saibar-landing-root .hero-section p { padding: 0 !important; text-wrap: pretty; }
+  .saibar-landing-root .bento-section { padding: 0 var(--m-gutter) !important; margin-top: var(--m-gap) !important; }
+  .saibar-landing-root .guide-section { padding: 0 var(--m-gutter) !important; margin: var(--m-gap) auto !important; }
+  .saibar-landing-root .bento-header-wrap {
+    align-items: flex-start !important;
+    gap: 4px !important;
+    margin-bottom: 20px !important;
+    text-align: left !important;
+  }
+  .saibar-landing-root .bento-container-grid { gap: 14px !important; }
+  .saibar-landing-root .bento-card-el { padding: 20px 18px !important; border-radius: 14px !important; }
+  .saibar-landing-root .card-meta-title { font-size: 0.72rem !important; margin-bottom: 10px !important; }
+  .saibar-landing-root .card-links-row { padding-top: 16px !important; }
+
+  /* ── Grafik 30 hari tetap tampil (digambar sesuai lebar layar, lihat
+     ProvinceTrendChart). Header section disembunyikan karena kartu grafik
+     sudah punya judul sendiri. ── */
+  .landing-trend-section > .bento-header-wrap { display: none !important; }
+  .landing-trend-section .bento-card-el { padding: 18px 14px !important; }
+  .landing-trend-section h2 { font-size: 1.2rem !important; }
+
+  /* ── Konten ganda disembunyikan di HP ── */
+  .saibar-landing-root .landing-map-frame { display: none !important; }
+
+  /* ── Bagian Panduan ── */
+  .saibar-landing-root .guide-definition-grid,
+  .saibar-landing-root .guide-map-grid { gap: 24px !important; margin-bottom: var(--m-gap) !important; }
+  .saibar-landing-root .guide-definition-grid > div:last-child > p,
+  .saibar-landing-root .guide-map-grid > div > p { margin-bottom: 20px !important; }
+  .saibar-landing-root .guide-definition-grid .landing-button { justify-content: center; width: 100%; box-sizing: border-box; padding: 14px 20px !important; }
+  /* Legenda kelas risiko (bukan kata-kata judul yang juga berupa span). */
+  .saibar-landing-root .guide-map-grid strong { min-width: 104px !important; }
+  .saibar-landing-root .guide-map-grid div > span:not(.landing-heading-word) { font-size: 0.88rem !important; }
+
+  /* Cara Melaporkan: daftar bernomor ringkas, bukan tiga kartu besar */
+  .saibar-landing-root .reporting-cta {
+    background: transparent !important;
+    border: 0 !important;
+    margin-bottom: var(--m-gap) !important;
+    padding: 0 !important;
+    text-align: left !important;
+  }
+  .saibar-landing-root .reporting-cta > p { margin: 0 0 20px !important; }
+  .saibar-landing-root .reporting-flow { gap: 10px !important; }
+  .saibar-landing-root .reporting-step {
+    align-items: start;
+    column-gap: 14px;
+    display: grid !important;
+    grid-template-columns: 36px 1fr;
+    padding: 14px 16px !important;
+    text-align: left !important;
+  }
+  .saibar-landing-root .reporting-step-number {
+    align-self: start;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    font-size: 0.85rem !important;
+    grid-row: span 2;
+    height: 36px !important;
+    margin: 0 !important;
+    width: 36px !important;
+  }
+  .saibar-landing-root .reporting-step-icon { display: none !important; }
+  .saibar-landing-root .reporting-step h3 { font-size: 1rem !important; margin: 6px 0 2px !important; }
+  .saibar-landing-root .reporting-step p { font-size: 0.9rem !important; margin: 0 !important; }
+  .saibar-landing-root .reporting-cta > div:last-child { margin-top: 20px !important; }
+  .saibar-landing-root .reporting-cta > div:last-child .landing-button { justify-content: center; width: 100%; box-sizing: border-box; }
+
+  /* FAQ */
+  /* Margin bawah ditangani .guide-section; tanpa ini jarak ke footer dobel. */
+  .saibar-landing-root .landing-faq-grid { gap: 16px !important; margin-bottom: 0 !important; }
+  .saibar-landing-root .landing-faq-grid [role="region"] > div { padding: 2px 18px 18px !important; font-size: 0.95rem !important; }
+  .saibar-landing-root .landing-faq-toggle { padding: 16px 18px !important; }
+  .saibar-landing-root .landing-faq-toggle strong { font-size: 0.98rem !important; }
+}

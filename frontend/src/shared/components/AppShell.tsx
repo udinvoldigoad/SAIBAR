@@ -7,8 +7,7 @@ import { useToast } from "./Toast";
 import { api } from "../api/client";
 import { roleLabels } from "../constants/roles";
 import { clearSession, getCurrentUser, isLoggedIn } from "../auth/session";
-import { useTheme } from "../utils/useTheme";
-import { ThemeToggle } from "./ThemeToggle";
+import { ThemeToggleControl } from "./ThemeToggle";
 
 const SIDEBAR_STORAGE_KEY = "saibar-sidebar";
 
@@ -47,7 +46,6 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children, class
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isNotificationOpen, setNotificationOpen] = useState(false);
-  const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState<InboxItem[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -237,7 +235,7 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children, class
           </div>
           
           <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
+            <ThemeToggleControl />
             {isUserLoggedIn ? (
               <div className="notification-menu" ref={notificationRef}>
                 <button

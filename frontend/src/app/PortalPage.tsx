@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Icon } from "../shared/components/Icon";
 import { MapPreview } from "../shared/components/MapPreview";
 import { ProvinceTrendChart } from "../shared/components/ProvinceTrendChart";
-import { ThemeToggle } from "../shared/components/ThemeToggle";
+import { ThemeToggleControl } from "../shared/components/ThemeToggle";
 import { LandingFooter } from "./LandingFooter";
 import { HeroForecast } from "./HeroForecast";
 import { RolesSection } from "./RolesSection";
-import { useTheme } from "../shared/utils/useTheme";
+import "./landingMobile.css";
 import { motion, AnimatePresence, MotionConfig, useReducedMotion } from "framer-motion";
 import { LandingHeading, scrollToLandingGuide, useLandingReveal } from "./landingMotion";
 import { dashboardHashForRole } from "../shared/constants/roles";
@@ -35,8 +35,16 @@ export function PortalPage() {
   const reducedMotion = useReducedMotion();
   const reveal = useLandingReveal();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const { isDark: isDarkMode, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
+  // Menu ☰ di HP (tautan navigasi disembunyikan di header sempit).
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("hashchange", close);
+    return () => { window.removeEventListener("scroll", close); window.removeEventListener("hashchange", close); };
+  }, [menuOpen]);
 
 
   // Header solid saat di puncak, berubah jadi frosted-blur (bukan transparan
@@ -774,10 +782,25 @@ export function PortalPage() {
           <a href="#panduan" onClick={scrollToLandingGuide}>Panduan</a>
         </nav>
         <div className="header-actions">
-          <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
+          <ThemeToggleControl />
           <a className="btn-nav-primary landing-button is-primary" href={userIsLoggedIn ? dashboardRoute : "#/login"}>{userIsLoggedIn ? "Dashboard" : "Login"}</a>
+          <button
+            type="button"
+            className="landing-menu-btn"
+            aria-label={menuOpen ? "Tutup menu" : "Buka menu"}
+            aria-expanded={menuOpen}
+            aria-controls="landing-menu-panel"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <Icon name={menuOpen ? "close" : "menu"} />
+          </button>
         </div>
       </header>
+      <nav id="landing-menu-panel" className="landing-menu-panel" hidden={!menuOpen} aria-label="Menu utama">
+        <a href="#/map" onClick={() => setMenuOpen(false)}><Icon name="map" /> Peta Risiko</a>
+        <a href="#/awam" onClick={() => setMenuOpen(false)}><Icon name="person_pin_circle" /> Mode Awam</a>
+        <a href="#panduan" onClick={(event) => { setMenuOpen(false); scrollToLandingGuide(event); }}><Icon name="help" /> Panduan</a>
+      </nav>
 
       {/* Cinematic Center Hero */}
       <section className="hero-section">
@@ -836,7 +859,7 @@ export function PortalPage() {
       />
 
       {/* Prediksi Probabilitas Rob — grafik sama persis dengan halaman Pantauan Provinsi */}
-      <section className="bento-section" style={{ marginTop: '100px', width: '100%' }}>
+      <section className="bento-section landing-trend-section" style={{ marginTop: '100px', width: '100%' }}>
         <div className="bento-header-wrap">
           <LandingHeading text="Pantauan Probabilitas Provinsi" />
           <p>Kondisi prediksi peluang banjir rob 30 hari ke depan di wilayah Provinsi Lampung.</p>
