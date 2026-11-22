@@ -3,6 +3,8 @@
   --surface: #ffffff;
   --surface-soft: #f1f5f9;
   --surface-muted: #e2e8f0;
+  --skeleton-base: #e2e8f0;
+  --skeleton-highlight: #cbd5e1;
   --bg-rgb: 248, 250, 252;
   --surface-rgb: 255, 255, 255;
   --sidebar-surface: var(--surface);
@@ -36,6 +38,8 @@
   --surface: #181818;
   --surface-soft: #222222;
   --surface-muted: #2c2c2c;
+  --skeleton-base: #242424;
+  --skeleton-highlight: #303030;
   --bg-rgb: 16, 16, 16;
   --surface-rgb: 24, 24, 24;
   --sidebar-surface: #0d0d0d;
@@ -113,11 +117,6 @@
   --footer-line: #1e293b;
 }
 
-:root[data-theme="dark"] .alert {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
   :root[data-theme="dark"] .maplibregl-map {
     filter: brightness(0.8) contrast(1.1);
   }
@@ -488,13 +487,22 @@ textarea { min-height: 100px; resize: vertical; }
   width: 22px;
 }
 .form-note {
-  background: var(--accent-soft);
-  border-left: 4px solid var(--accent);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
   margin: 0;
-  padding: 11px 12px;
 }
+
+/* Pesan bantuan dan status: ikon memberi konteks, teks membawa informasinya. */
+.inline-notice { --notice-color: var(--ocean-dark); display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 9px; color: var(--ink-soft); font-size: 13px; line-height: 1.6; }
+.inline-notice > .material-symbols-outlined { margin-top: 1px; color: var(--notice-color); font-size: 18px; }
+.inline-notice.success { --notice-color: var(--green-text); }
+.inline-notice.warning { --notice-color: var(--amber-text); }
+.inline-notice.error { --notice-color: var(--red-text); }
+.inline-notice-content { min-width: 0; overflow-wrap: anywhere; }
+.inline-notice-title { display: block; color: var(--ink); font-size: 13px; font-weight: 600; }
+.inline-notice-title + div { margin-top: 3px; }
+.inline-notice-content p { color: inherit; font-size: inherit; margin: 0; }
 
 .app-shell {
   --sidebar-width: var(--sidebar);
@@ -1141,12 +1149,10 @@ textarea { min-height: 100px; resize: vertical; }
   line-height: 1.45;
 }
 .validation-note {
-  background: #f8fafc;
-  border-left: 4px solid var(--accent);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
   margin: 0;
-  padding: 11px 12px;
 }
 .empty-state {
   display: grid;
@@ -1562,24 +1568,26 @@ code {
 /* Skeleton Loaders */
 @keyframes shimmer {
   0% {
-    background-position: -1000px 0;
+    background-position: 200% 0;
   }
   100% {
-    background-position: 1000px 0;
+    background-position: -200% 0;
   }
 }
 .skeleton {
-  background: #e2e8f0;
+  background-color: var(--skeleton-base);
   background-image: linear-gradient(
-    to right,
-    #e2e8f0 0%,
-    #cbd5e1 20%,
-    #e2e8f0 40%,
-    #e2e8f0 100%
+    100deg,
+    var(--skeleton-base) 35%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 65%
   );
   background-repeat: no-repeat;
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite linear forwards;
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background-image: none; }
 }
 
 /* Toasts */
@@ -1606,31 +1614,19 @@ code {
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid var(--accent);
+  border: 1px solid var(--line);
   font-size: 0.9rem;
   font-weight: 600;
   overflow: hidden;
 }
-.toast-success {
-  border-left-color: var(--low);
-}
 .toast-success .material-symbols-outlined {
   color: var(--low);
-}
-.toast-error {
-  border-left-color: var(--critical);
 }
 .toast-error .material-symbols-outlined {
   color: var(--critical);
 }
-.toast-info {
-  border-left-color: var(--accent);
-}
 .toast-info .material-symbols-outlined {
-  color: var(--accent);
-}
-.toast-warning {
-  border-left-color: var(--medium);
+  color: var(--ocean-dark);
 }
 .toast-warning .material-symbols-outlined {
   color: var(--medium);
@@ -1641,7 +1637,7 @@ code {
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 4px;
+  height: 2px;
   border-radius: 0 var(--radius) 0 var(--radius);
   background: var(--accent);
   animation: toastShrink var(--toast-duration, 4s) linear forwards;
@@ -1649,7 +1645,7 @@ code {
 }
 .toast-success .toast-progress { background: var(--low); }
 .toast-warning .toast-progress { background: var(--medium); }
-.toast-info .toast-progress { background: var(--accent); }
+.toast-info .toast-progress { background: var(--ocean-dark); }
 .toast-error .toast-progress { background: var(--critical); }
 /* Timer JS dijeda saat hover/fokus — sejajarkan animasi garismya. */
 .toast:hover .toast-progress,

@@ -5,6 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { api, errorMessage } from "../../shared/api/client";
 import { AppShell } from "../../shared/components/AppShell";
 import { useToast } from "../../shared/components/Toast";
+import { InlineNotice } from "../../shared/components/InlineNotice";
 import { statusLabels, type ReportStatus } from "./reportData";
 
 type ReportResponse = {
@@ -110,6 +111,7 @@ export function ReportWizardPage() {
   const [resolvedRegion, setResolvedRegion] = useState<ResolvedRegion | null>(null);
   const [isResolvingRegion, setResolvingRegion] = useState(false);
   const derivedSeverity = severityFromWaterHeight(Number(waterHeight || 0));
+  const hasWaterHeight = waterHeight.trim() !== "" && Number.isFinite(Number(waterHeight)) && Number(waterHeight) >= 0 && Number(waterHeight) <= 500;
   
   // Map logic
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -290,7 +292,7 @@ export function ReportWizardPage() {
     setSelectedPhotos((previous) => previous.filter((_, position) => position !== index));
   }
 
-  const selectedSeverityLabel = severityOptions.find(o => o.key === derivedSeverity)?.label || "Parah";
+  const selectedSeverityLabel = hasWaterHeight ? severityOptions.find(o => o.key === derivedSeverity)?.label || "Parah" : "Belum diisi";
   const isMonitoredRegion = resolvedRegion ? (resolvedRegion.is_monitored ?? resolvedRegion.coastal_flag) : false;
   const photoPreviews = useMemo(() => selectedPhotos.map((file) => ({ file, url: URL.createObjectURL(file) })), [selectedPhotos]);
   useEffect(() => () => { photoPreviews.forEach((preview) => URL.revokeObjectURL(preview.url)); }, [photoPreviews]);
@@ -311,6 +313,8 @@ export function ReportWizardPage() {
       breadcrumbs={[{ label: "Dashboard", href: "#/" }, { label: "Pelaporan" }]}
     >
       <style>{`
+        .report-wizard, .report-success-card { --accent: #0369a1; --accent-dark: #075985; --accent-soft: var(--ocean-light); }
+        .report-wizard .panel:hover { border-color: var(--line); box-shadow: 0 4px 24px rgba(15, 23, 42, .04); transform: none; }
         @keyframes reportSpin { to { transform: rotate(360deg); } }
         .report-spin { animation: reportSpin 0.9s linear infinite; }
         .report-success-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(2px); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px; z-index: 1000; }
@@ -327,17 +331,31 @@ export function ReportWizardPage() {
         .photo-remove:hover { background: var(--critical); }
         
         .wizard-layout { display: grid; grid-template-columns: 1.5fr 400px; gap: 32px; align-items: start; justify-content: center; }
-        .severity-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .report-location-note { padding-top: 6px; }
+        .report-severity { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--line); }
+        .report-severity-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .report-severity-head h3 { margin: 0; color: var(--ink); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+        .report-severity-result { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 12px; }
+        .report-severity-result i { width: 6px; height: 6px; border-radius: 50%; background: var(--severity-color); }
+        .report-severity-result.has-value { color: var(--ink); font-weight: 600; }
+        .severity-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .report-severity-step { min-width: 0; padding-top: 10px; border-top: 3px solid var(--line); }
+        .report-severity-step.is-selected { border-color: var(--severity-color); }
+        .report-severity-step strong { display: block; color: var(--ink-soft); font-size: 12px; font-weight: 500; line-height: 1.5; }
+        .report-severity-step.is-selected strong { color: var(--ink); font-weight: 700; }
+        .report-severity-step span { display: block; margin-top: 3px; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
+        .report-declaration { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 10px; align-items: start; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 12.5px; line-height: 1.6; cursor: pointer; }
+        .report-declaration input { width: 16px; height: 16px; margin: 3px 0 0; accent-color: var(--accent); }
         .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 1080px) {
           .wizard-layout { grid-template-columns: 1fr; }
         }
         @media (max-width: 600px) {
-          .severity-grid { grid-template-columns: repeat(2, 1fr); }
+          .severity-grid { gap: 8px; }
           .details-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
+      <div className="report-wizard" style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
         <div className="step-strip" aria-label="Tahap laporan ground truth" style={{ margin: "0 auto 28px", maxWidth: 640 }}>
           <span><b>1</b> Pilih lokasi</span>
           <span><b>2</b> Detail kejadian</span>
@@ -356,78 +374,57 @@ export function ReportWizardPage() {
                 <span className="material-symbols-outlined" style={{ color: "var(--accent)", fontSize: 20 }}>my_location</span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>Koordinat Terpilih</div>
-                  <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 2 }}>{coords.lat.toFixed(5)}Â°, {coords.lng.toFixed(5)}Â°</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 2 }}>{coords.lat.toFixed(5)}°, {coords.lng.toFixed(5)}°</div>
                   <div style={{ fontSize: 12, color: resolvedRegion ? "var(--ink)" : "var(--medium)", marginTop: 4 }}>
                     {isResolvingRegion ? "Mencari nama wilayah..." : resolvedRegion
                       ? `${resolvedRegion.village ?? "-"}, ${resolvedRegion.district ?? "-"}, ${resolvedRegion.regency ?? "-"}`
-                      : "Koordinat di luar batas administrasi Lampung yang tersedia."}
+                      : "Nama wilayah belum tersedia."}
                   </div>
                 </div>
               </div>
-              {resolvedRegion ? (
-                <p
-                  className="form-note"
-                  style={{
-                    borderLeftColor: isMonitoredRegion ? "var(--low)" : "var(--medium)",
-                    background: isMonitoredRegion ? "rgba(22, 163, 74, 0.08)" : undefined,
-                    color: isMonitoredRegion ? "#14532d" : undefined,
-                  }}
-                >
-                  {isMonitoredRegion
-                    ? "Lokasi masuk wilayah pantauan prediksi rob. Laporan akan masuk antrean validasi BPBD sesuai wilayah kerja."
-                    : "Lokasi berada di luar wilayah pantauan prediksi rob. Laporan tetap dapat dikirim dan akan masuk antrean triase BPBD untuk peninjauan."}
-                </p>
-              ) : !isResolvingRegion ? (
-                <p className="form-note" style={{ borderLeftColor: "var(--medium)" }}>
-                  Lokasi berada di luar wilayah administrasi yang terdata. Laporan tetap dapat dikirim dan akan masuk antrean triase BPBD untuk peninjauan.
-                </p>
-              ) : null}
-            </section>
-
-            <section style={{ display: "grid", gap: 10 }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Tingkat keparahan otomatis</label>
-              <p className="form-note" style={{ marginTop: 0 }}>Sistem menentukan keparahan dari estimasi tinggi air. Anda cukup isi tinggi genangan, lalu kategori akan berubah otomatis.</p>
-              <div className="severity-grid">
-                {severityOptions.map((option) => {
-                  const isSelected = derivedSeverity === option.key;
-                  return (
-                    <div
-                      key={option.key}
-                      style={{
-                        border: `2px solid ${isSelected ? option.tone : "var(--line)"}`,
-                        background: isSelected ? `${option.tone}12` : "var(--surface)",
-                        borderRadius: 8,
-                        padding: 16,
-                        textAlign: "center",
-                        cursor: "default",
-                        opacity: isSelected ? 1 : 0.62,
-                        boxShadow: isSelected ? `0 0 0 3px ${option.tone}26` : "none",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ color: option.tone, fontSize: 24, display: "block", margin: "0 auto 8px" }}>
-                        water_drop
-                      </span>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? option.tone : "var(--ink)" }}>
-                        {option.label}{isSelected ? " ✓" : ""}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 4 }}>{option.note}</div>
-                    </div>
-                  );
-                })}
-              </div>
+              {!isResolvingRegion && (
+                <InlineNotice className="report-location-note" tone={isMonitoredRegion ? "success" : "warning"} icon={isMonitoredRegion ? "check_circle" : "info"} role="status"
+                  title={isMonitoredRegion ? "Lokasi dalam wilayah pantauan" : resolvedRegion ? "Di luar wilayah pantauan" : "Wilayah belum teridentifikasi"}>
+                  {isMonitoredRegion ? "BPBD akan memeriksa laporan sesuai wilayah kerja." : "Laporan tetap dapat dikirim. BPBD akan meninjau lokasi terlebih dahulu."}
+                </InlineNotice>
+              )}
             </section>
 
             <div className="details-grid">
               <div style={{ display: "grid", gap: 8 }}>
                 <label htmlFor="water_height_cm" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Estimasi ketinggian air (cm)</label>
-                <input id="water_height_cm" name="water_height_cm" type="number" min="0" max="500" value={waterHeight} onChange={e => setWaterHeight(e.target.value)} required />
+                <input id="water_height_cm" name="water_height_cm" type="number" min="0" max="500" value={waterHeight} onChange={e => setWaterHeight(e.target.value)} required aria-describedby="water-height-help" />
+                <p id="water-height-help" className="form-note">Keparahan dihitung otomatis dari tinggi genangan.</p>
               </div>
-              <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
                 <label htmlFor="incident_time" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Waktu kejadian</label>
                 <input id="incident_time" name="incident_time" type="time" value={incidentTime} onChange={e => setIncidentTime(e.target.value)} required />
               </div>
             </div>
+
+            <section className="report-severity" aria-labelledby="report-severity-title">
+              <div className="report-severity-head">
+                <h3 id="report-severity-title">Tingkat keparahan</h3>
+                <span className={`report-severity-result${hasWaterHeight ? " has-value" : ""}`} role="status" style={{ ["--severity-color" as string]: severityOptions.find(o => o.key === derivedSeverity)?.tone }}>
+                  {hasWaterHeight && <i />}{hasWaterHeight ? selectedSeverityLabel : "Isi tinggi air terlebih dahulu"}
+                </span>
+              </div>
+              <div className="severity-grid">
+                {severityOptions.map((option) => {
+                  const isSelected = hasWaterHeight && derivedSeverity === option.key;
+                  return (
+                    <div
+                      key={option.key}
+                      className={`report-severity-step${isSelected ? " is-selected" : ""}`}
+                      style={{ ["--severity-color" as string]: option.tone }}
+                    >
+                      <strong>{option.label}</strong>
+                      <span>{option.note}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
 
             <section style={{ display: "grid", gap: 8 }}>
               <label htmlFor="description" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
@@ -496,7 +493,7 @@ export function ReportWizardPage() {
               <div className="summary-grid" style={{ display: "grid", gap: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingBottom: 14, borderBottom: "1px solid var(--line)" }}>
                   <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>Koordinat</span>
-                  <strong style={{ fontSize: 14 }}>{coords.lat.toFixed(4)}Â°, {coords.lng.toFixed(4)}Â°</strong>
+                  <strong style={{ fontSize: 14 }}>{coords.lat.toFixed(4)}°, {coords.lng.toFixed(4)}°</strong>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingBottom: 14, borderBottom: "1px solid var(--line)" }}>
                   <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>Keparahan</span>
@@ -504,7 +501,7 @@ export function ReportWizardPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingBottom: 14, borderBottom: "1px solid var(--line)" }}>
                   <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>Ketinggian air</span>
-                  <strong style={{ fontSize: 14 }}>±{waterHeight || 0} cm</strong>
+                  <strong style={{ fontSize: 14 }}>{hasWaterHeight ? `±${waterHeight} cm` : "Belum diisi"}</strong>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingBottom: 14, borderBottom: "1px solid var(--line)" }}>
                   <span style={{ color: "var(--ink-soft)", fontSize: 13 }}>Waktu kejadian</span>
@@ -517,19 +514,13 @@ export function ReportWizardPage() {
               </div>
             </div>
 
-            <div style={{ background: "var(--accent-soft)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: 8, padding: 16, display: "flex", alignItems: "start", gap: 12 }}>
-              <input type="checkbox" checked={isDeclarationAccepted} onChange={(event) => setDeclarationAccepted(event.target.checked)} required aria-label="Setujui pernyataan kebenaran laporan" style={{ marginTop: 4, width: 16, height: 16, accentColor: "var(--accent)", flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5, color: "var(--ink)", lineHeight: 1.6 }}>Saya menyatakan bahwa data yang dilaporkan adalah informasi nyata yang saya saksikan sendiri. Data ini akan digunakan untuk meningkatkan model prediksi banjir rob SAIBAR.</span>
-            </div>
+            <label className="report-declaration">
+              <input type="checkbox" checked={isDeclarationAccepted} onChange={(event) => setDeclarationAccepted(event.target.checked)} required aria-label="Setujui pernyataan kebenaran laporan" />
+              <span>Saya menyatakan laporan ini sesuai kejadian yang saya saksikan. Data digunakan untuk meningkatkan prediksi rob SAIBAR.</span>
+            </label>
 
             {submitError && !isSubmitting && (
-              <div className="alert" style={{ borderLeftColor: "var(--critical)", display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <span className="material-symbols-outlined" style={{ color: "var(--critical)", fontSize: 20 }}>error</span>
-                <div style={{ fontSize: 13 }}>
-                  <strong style={{ display: "block", color: "var(--ink)", marginBottom: 2 }}>Laporan belum terkirim</strong>
-                  <span style={{ color: "var(--ink-soft)" }}>{submitError} Periksa isian, lalu kirim ulang.</span>
-                </div>
-              </div>
+              <InlineNotice tone="error" title="Laporan belum terkirim">{submitError} Periksa isian, lalu kirim ulang.</InlineNotice>
             )}
             <button className="btn primary" type="submit" disabled={isSubmitting} data-loading={isSubmitting || undefined} style={{ padding: "14px 24px", fontSize: 15 }}>
               <span className={`material-symbols-outlined ${isSubmitting ? "report-spin" : ""}`} style={{ fontSize: 18 }}>{isSubmitting ? "progress_activity" : (submitError ? "refresh" : "send")}</span>

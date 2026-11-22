@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Icon } from "../../shared/components/Icon";
+import { InlineNotice } from "../../shared/components/InlineNotice";
 import { api, apiUrl, ApiError, errorMessage } from "../../shared/api/client";
 import { useToast } from "../../shared/components/Toast";
 import { dashboardHashForRole } from "../../shared/constants/roles";
@@ -308,18 +309,10 @@ export function LoginPage() {
 
                 {loginNotice && (() => {
                   const isPending = loginNotice.status === "menunggu";
-                    const tone = isPending
-                      ? { bg: "var(--surface-soft)", border: "var(--line)", ink: "var(--ink)", icon: "hourglass_top", title: "Akun menunggu persetujuan" }
-                      : { bg: "var(--surface-soft)", border: "var(--line)", ink: "var(--ink)", icon: "block",
-                          title: loginNotice.status === "ditolak" ? "Pendaftaran ditolak" : "Akun dinonaktifkan" };
                   return (
-                    <div role="alert" style={{ marginBottom: "24px", padding: "14px 16px", borderRadius: 10, background: tone.bg, border: `1px solid ${tone.border}`, display: "flex", gap: 12, alignItems: "flex-start" }}>
-                      <Icon name={tone.icon} style={{ fontSize: 20, color: tone.ink, flexShrink: 0, marginTop: 1 }} />
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: "0.92rem", color: tone.ink, marginBottom: 2 }}>{tone.title}</div>
-                        <div style={{ fontSize: "0.85rem", color: tone.ink, lineHeight: 1.5, opacity: 0.9 }}>{loginNotice.message}</div>
-                      </div>
-                    </div>
+                    <InlineNotice role="alert" tone={isPending ? "warning" : "error"} icon={isPending ? "hourglass_top" : "block"}
+                      title={isPending ? "Akun menunggu persetujuan" : loginNotice.status === "ditolak" ? "Pendaftaran ditolak" : "Akun dinonaktifkan"}
+                      style={{ marginBottom: 24 }}>{loginNotice.message}</InlineNotice>
                   );
                 })()}
                   <div style={{ marginBottom: "24px" }}>
@@ -437,14 +430,11 @@ export function LoginPage() {
                   ))}
                 </div>
 
-                <div style={{ marginBottom: "24px", padding: "12px 16px", borderRadius: "10px", background: "var(--surface-soft)", border: "1px solid var(--line)", fontSize: "13px", color: "var(--ink-soft)", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                  <Icon name={isPeneliti ? "gavel" : "info"} style={{ fontSize: "18px", color: "#3b82f6", flexShrink: 0, marginTop: "2px" }} />
-                  <span style={{ lineHeight: "1.5" }}>
+                <InlineNotice icon={isPeneliti ? "gavel" : "info"} style={{ marginBottom: 24 }}>
                     {isPeneliti
-                      ? "Akun peneliti membuka data mentah laporan & prediksi, jadi permohonan Anda ditinjau admin lebih dulu. Isi keterangan di bawah selengkap mungkin — admin memakainya untuk memastikan kepentingan Anda."
-                      : "Butuh akun BPBD? Hubungi admin — akun instansi dibuat & diverifikasi langsung oleh admin."}
-                  </span>
-                </div>
+                      ? "Akun peneliti memberi akses dataset dan API penelitian. Admin meninjau tujuan penggunaan sebelum akses diaktifkan."
+                      : "Untuk akun instansi BPBD, hubungi admin."}
+                </InlineNotice>
 
                 <div style={{ marginBottom: "20px" }}>
                   <label style={labelStyle} htmlFor="reg-name">Nama Lengkap</label>
@@ -581,12 +571,9 @@ export function LoginPage() {
                   Tanpa keterangan ini pemohon mengira verifikasi gagal saat
                   loginnya tetap ditolak. */}
               {awaitingApproval && (
-                <div role="status" style={{ marginBottom: "24px", padding: "14px 16px", borderRadius: 10, background: "var(--surface-soft)", border: "1px solid var(--line)", display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <Icon name="hourglass_top" style={{ fontSize: 20, color: "var(--ink)", flexShrink: 0, marginTop: 1 }} />
-                  <div style={{ fontSize: "0.85rem", color: "var(--ink)", lineHeight: 1.5 }}>
+                <InlineNotice role="status" tone="warning" icon="hourglass_top" style={{ marginBottom: 24 }}>
                     Setelah email terverifikasi, permohonan akun peneliti Anda masuk ke antrean admin. Anda akan bisa masuk begitu admin menyetujuinya.
-                  </div>
-                </div>
+                </InlineNotice>
               )}
 
               <div style={{ marginBottom: "24px" }}>
@@ -826,13 +813,11 @@ export function LoginPage() {
           .auth-card-wrapper input[type="checkbox"] {
             accent-color: #60a5fa !important;
           }
-          .auth-card-wrapper [role="alert"] {
-            background: rgba(0, 0, 0, 0.3) !important;
-            border-color: rgba(255, 255, 255, 0.2) !important;
-          }
-          .auth-card-wrapper [role="alert"] div, .auth-card-wrapper [role="alert"] .material-symbols-outlined {
-            color: #ffffff !important;
-          }
+          .auth-card-wrapper .inline-notice { color: rgba(255, 255, 255, 0.8); }
+          .auth-card-wrapper .inline-notice-title { color: #fff; }
+          .auth-card-wrapper .inline-notice > .material-symbols-outlined { color: #7dd3fc; }
+          .auth-card-wrapper .inline-notice.warning > .material-symbols-outlined { color: #fde68a; }
+          .auth-card-wrapper .inline-notice.error > .material-symbols-outlined { color: #fca5a5; }
           .auth-card-wrapper button[title] {
             color: rgba(255, 255, 255, 0.6) !important;
           }

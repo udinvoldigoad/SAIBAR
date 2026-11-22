@@ -10,6 +10,7 @@
 
 import { motion, type Variants } from "framer-motion";
 import { Icon } from "../../shared/components/Icon";
+import { InlineNotice } from "../../shared/components/InlineNotice";
 import { severityLabels, type ReportSeverity } from "../reports/reportData";
 import type { RiskClass } from "../../shared/types/domain";
 
@@ -115,8 +116,8 @@ export const itemVariants: Variants = {
 export function ErrorBanner({ error, marginBottom }: { error: string; marginBottom: number }) {
   if (!error) return null;
   return (
-    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="alert" style={{ marginBottom, borderLeftColor: "var(--critical)" }}>
-      <Icon name="error" style={{ color: "var(--critical)" }} /> {error}
+    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom }}>
+      <InlineNotice tone="error">{error}</InlineNotice>
     </motion.div>
   );
 }
@@ -133,10 +134,9 @@ export function StatusBadge({ data, compact }: { data: ModeAwamData | undefined;
 export function PredictionNotice({ data, tone }: { data: ModeAwamData | undefined; tone: "amber" | "frost" }) {
   if (!data?.prediction_notice) return null;
   return (
-    <div className={`citizen-prediction-notice ${tone}`}>
-      <Icon name={data.prediction_status === "unavailable" ? "schedule" : "update"} style={{ fontSize: tone === "frost" ? 16 : 17, flexShrink: 0, marginTop: 1 }} />
-      <span>{data.prediction_notice}</span>
-    </div>
+    <InlineNotice className={`citizen-prediction-notice ${tone}`} tone="warning" icon={data.prediction_status === "unavailable" ? "schedule" : "update"}>
+      {data.prediction_notice}
+    </InlineNotice>
   );
 }
 
@@ -370,25 +370,15 @@ export const CITIZEN_SHARED_STYLES = `
   .citizen-status-badge[data-compact] { font-size: 12px; margin-bottom: 12px; padding: 4px 10px; }
 
   .citizen-prediction-notice {
-    align-items: flex-start;
-    background: rgba(245, 158, 11, 0.18);
-    border: 1px solid rgba(245, 158, 11, 0.5);
-    border-radius: 12px;
-    display: flex;
-    font-size: 13.5px;
-    gap: 8px;
-    line-height: 1.5;
     margin-bottom: 16px;
     max-width: 600px;
-    padding: 10px 14px;
+    color: rgba(255, 255, 255, 0.95);
   }
   .citizen-prediction-notice.frost {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
     color: white;
-    font-size: 13px;
     max-width: none;
   }
+  .citizen-prediction-notice > .material-symbols-outlined { color: inherit; }
 
   .citizen-guidance {
     color: rgba(255, 255, 255, 0.95);

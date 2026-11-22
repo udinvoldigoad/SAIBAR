@@ -110,9 +110,9 @@ export function ReportHistoryPage() {
                 </div>
                 
                 {report.description && (
-                  <div style={{ padding: "12px 16px", background: "var(--surface-soft)", borderRadius: 8, borderLeft: "3px solid var(--accent)", fontSize: "0.95rem", color: "var(--ink)", lineHeight: 1.6 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--ink)", lineHeight: 1.7 }}>
                     {report.description}
-                  </div>
+                  </p>
                 )}
                 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: "0.85rem", color: "var(--ink)" }}>

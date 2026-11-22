@@ -5,6 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { AppShell } from "../../shared/components/AppShell";
 import { Icon } from "../../shared/components/Icon";
 import { Skeleton } from "../../shared/components/Skeleton";
+import { InlineNotice } from "../../shared/components/InlineNotice";
 import { useToast } from "../../shared/components/Toast";
 import { errorMessage } from "../../shared/api/client";
 import { fetchOperatorReport, severityLabels, statusLabels, updateOperatorReportStatus, type OperatorReport, type ReportStatus } from "./reportData";
@@ -120,8 +121,8 @@ export function ReportDetailPage({ reportId }: { reportId: string }) {
       `}</style>
       <div className="detail-layout">
         <section className="panel report-detail">
-          {error && <div className="alert">{error}</div>}
-          <section className="alert" style={{ display: "grid", gap: 6 }}>
+          {error && <InlineNotice tone="error">{error}</InlineNotice>}
+          <section style={{ display: "grid", gap: 6, paddingBottom: 18, borderBottom: "1px solid var(--line)", fontSize: 13, color: "var(--ink-soft)" }}>
             <strong>{report.code}</strong>
             <span>{report.village}, {report.district}, {report.regency} · kejadian {report.incidentTime}</span>
           </section>

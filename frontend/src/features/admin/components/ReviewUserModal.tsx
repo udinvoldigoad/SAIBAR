@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "../../../shared/components/Icon";
+import { InlineNotice } from "../../../shared/components/InlineNotice";
 import type { UserData } from "../types";
 
 export function ReviewUserModal({ user, onClose, onApprove, onReject, isActing }: {
@@ -58,14 +59,9 @@ export function ReviewUserModal({ user, onClose, onApprove, onReject, isActing }
               </div>
 
               {user.permission_workflow?.email_verified ? (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 700, color: "#166534" }}>
-                  <Icon name="verified" style={{ fontSize: 18 }} /> Email sudah diverifikasi pemohon
-                </div>
+                <InlineNotice tone="success" icon="verified" title="Email sudah diverifikasi pemohon" />
               ) : (
-                <div role="alert" style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--critical)", color: "#991b1b", fontSize: 12.5, lineHeight: 1.5 }}>
-                  <Icon name="warning" style={{ fontSize: 18, flexShrink: 0 }} />
-                  <span><strong>Email belum diverifikasi.</strong> Pemohon belum memasukkan kode OTP, jadi belum terbukti alamat ini miliknya. Sebaiknya tunggu verifikasi sebelum menyetujui.</span>
-                </div>
+                <InlineNotice tone="warning" title="Email belum diverifikasi.">Pemohon belum memasukkan kode OTP, jadi belum terbukti alamat ini miliknya. Sebaiknya tunggu verifikasi sebelum menyetujui.</InlineNotice>
               )}
 
               <div style={{ display: "grid", gap: 14, padding: "16px", borderRadius: 14, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
