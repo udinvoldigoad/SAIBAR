@@ -5,7 +5,9 @@ import { api, apiUrl, ApiError, errorMessage } from "../../shared/api/client";
 import { useToast } from "../../shared/components/Toast";
 import { dashboardHashForRole } from "../../shared/constants/roles";
 import { setSession } from "../../shared/auth/session";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { ThemeToggleControl } from "../../shared/components/ThemeToggle";
+import "./loginPage.css";
 
 interface LoginResponse {
   access_token: string;
@@ -17,6 +19,28 @@ interface LoginResponse {
     role: string;
     status: string;
   };
+}
+
+function GoogleMark() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+  </svg>;
+}
+
+function PasswordField({ id, value, onChange, visible, onToggle, registering = false }: {
+  id: string; value: string; onChange: (value: string) => void; visible: boolean; onToggle: () => void; registering?: boolean;
+}) {
+  return <div className="auth-field">
+    <div className="auth-label-row"><label htmlFor={id}>Kata sandi</label>{!registering && <a className="auth-text-link" href="#/forgot-password">Lupa sandi?</a>}</div>
+    <div className="auth-password-control">
+      <input id={id} name="password" type={visible ? "text" : "password"} autoComplete={registering ? "new-password" : "current-password"} value={value} onChange={(event) => onChange(event.target.value)} placeholder={registering ? "Buat kata sandi" : "Masukkan kata sandi"} minLength={registering ? 8 : undefined} aria-describedby={registering ? `${id}-hint` : undefined} required />
+      <button type="button" className="auth-password-toggle" onClick={onToggle} aria-label={visible ? "Sembunyikan sandi" : "Tampilkan sandi"} title={visible ? "Sembunyikan sandi" : "Tampilkan sandi"} aria-pressed={visible}><Icon name={visible ? "visibility_off" : "visibility"} /></button>
+    </div>
+    {registering && <p className="auth-field-hint" id={`${id}-hint`}>Gunakan minimal 8 karakter.</p>}
+  </div>;
 }
 
 export function LoginPage() {
@@ -197,633 +221,79 @@ export function LoginPage() {
     }
   };
 
-  const inputStyle = {
-    width: "100%",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    border: "1px solid var(--line)",
-    background: "var(--surface-soft)",
-    fontSize: "15px",
-    color: "var(--ink)",
-    outline: "none",
-    transition: "all 0.2s",
-    boxSizing: "border-box" as const,
-  };
-
-  const labelStyle = {
-    display: "block",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "var(--ink)",
-    marginBottom: "8px"
-  };
+  const reducedMotion = useReducedMotion();
+  const heading = mode === "login" ? "Masuk ke SAIBAR" : mode === "register" ? "Buat akun SAIBAR" : "Verifikasi email";
 
   return (
-    <main className="login-main">
-      {/* Visual Left Banner */}
-      <section style={{ 
-        flex: "1 1 50%", 
-        display: "none", 
-        position: "relative", 
-        overflow: "hidden", 
-        background: "linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 64, 175, 0.75) 100%), url('/bg-laut.jpg') center/cover no-repeat", 
-        color: "#fff", 
-        padding: "60px",
-        flexDirection: "column",
-        justifyContent: "space-between"
-      }} className="desktop-flex">
-        
-        {/* Abstract Oceanic Background */}
-        <div style={{ position: "absolute", top: "-10%", left: "-10%", width: "50%", height: "50%", background: "#3b82f6", borderRadius: "50%", filter: "blur(120px)", opacity: 0.5 }}></div>
-        <div style={{ position: "absolute", bottom: "-10%", right: "-10%", width: "60%", height: "60%", background: "#60a5fa", borderRadius: "50%", filter: "blur(140px)", opacity: 0.3 }}></div>
-
-        <div style={{ position: "relative", zIndex: 10 }}>
-          <a href="#/" style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: "1.2rem", letterSpacing: "0.5px" }}>
-            <div style={{ width: "36px", height: "36px", background: "rgba(255,255,255,0.2)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(10px)" }}>
-              <Icon name="water_drop" style={{ fontSize: "20px" }} />
-            </div>
-            SAIBAR
-          </a>
+    <main className="login-page" data-mode={mode}>
+      <aside className="auth-visual" aria-label="SAIBAR, informasi rob pesisir Lampung">
+        <a className="auth-brand" href="#/"><img src="/logo.png" width="38" height="38" alt="" /><span>SAIBAR</span></a>
+        <div className="auth-visual-copy">
+          <h2>Informasi rob untuk<br />pesisir Lampung.</h2>
+          <p>Pantau prediksi risiko dan bagikan kondisi di sekitar Anda. Satu tempat untuk warga, peneliti, dan pengelola.</p>
+          <a href="#/map">Lihat peta tanpa masuk<Icon name="arrow_forward" /></a>
         </div>
+      </aside>
 
-        <div style={{ position: "relative", zIndex: 10, maxWidth: "500px" }}>
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            style={{ color: "#fff", fontSize: "clamp(1.7rem, 2.7vw, 2.35rem)", lineHeight: 1.2, fontWeight: 900, margin: "0 0 24px", letterSpacing: "-0.02em" }}
-          >
-            Sistem Informasi Prediksi Risiko <br/><span style={{ color: "var(--ocean-light)" }}>Banjir Rob Terpadu Provinsi Lampung.</span>
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            style={{ color: "rgba(255,255,255,0.8)", fontSize: "1.1rem", lineHeight: 1.6, marginBottom: "48px" }}
-          >
-            Akses platform terpadu untuk memantau ancaman banjir rob secara real-time, 
-            dilengkapi dengan prediksi Machine Learning tingkat lanjut dan validasi data berbasis komunitas.
-          </motion.p>
-
-
+      <section className="auth-form-section" aria-label="Akses akun SAIBAR">
+        <div className="auth-form-toolbar">
+          <button type="button" className="auth-back" onClick={() => window.history.length > 1 ? window.history.back() : (window.location.hash = "#/")}><Icon name="arrow_back" />Kembali</button>
+          <ThemeToggleControl />
         </div>
-      </section>
+        <div className="auth-form-body">
+          <div className="auth-card-wrapper">
+            <a className="auth-brand auth-mobile-brand" href="#/"><img src="/logo.png" width="32" height="32" alt="" /><span>SAIBAR</span></a>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.form key={mode} onSubmit={mode === "login" ? handleLogin : mode === "register" ? handleRegister : handleVerifyOtp}
+                initial={reducedMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} aria-labelledby="auth-title">
+                <header className="auth-header-text">
+                  <h1 id="auth-title">{heading}</h1>
+                  {mode === "login" ? <p>Gunakan email dan kata sandi untuk melanjutkan.</p> : mode === "register" ? <p>Daftar sebagai warga atau ajukan akses untuk penelitian.</p> : <p>Kami mengirim kode 6 digit ke <strong>{verifyEmail}</strong>. Masukkan kode tersebut untuk memverifikasi email Anda.</p>}
+                </header>
 
-      {/* Form Right Panel */}
-      <section className="auth-form-section">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="auth-card-wrapper"
-        >
-          <button 
-            type="button" 
-            onClick={() => window.history.length > 1 ? window.history.back() : (window.location.hash = "#/")}
-            style={{ background: "none", border: "none", color: "var(--ink-soft)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px", padding: 0, marginBottom: "24px", fontWeight: 600, fontSize: "14px" }}
-            className="back-btn-global"
-          >
-            <Icon name="arrow_back" style={{ fontSize: "18px" }} /> Kembali
-          </button>
-
-          {/* Logo for mobile */}
-          <div className="mobile-only mobile-only-header">
-            <div className="mobile-logo-badge">
-              <Icon name="water_drop" style={{ fontSize: "26px" }} />
-            </div>
-            <h2 className="mobile-brand-title">SAIBAR</h2>
-          </div>
-
-          <AnimatePresence mode="wait">
-            {mode === "verify" ? null : mode === "login" ? (
-              <motion.form 
-                key="login"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -10 }}
-                onSubmit={handleLogin}
-              >
-                <div className="auth-header-text" style={{ marginBottom: "32px" }}>
-                  <h2 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0 0 8px", color: "var(--ink)" }}>Selamat datang</h2>
-                  <p style={{ color: "var(--ink-soft)", fontSize: "0.95rem", margin: 0 }}>Silakan masukkan kredensial Anda untuk melanjutkan.</p>
-                </div>
-
-                {loginNotice && (() => {
-                  const isPending = loginNotice.status === "menunggu";
-                  return (
-                    <InlineNotice role="alert" tone={isPending ? "warning" : "error"} icon={isPending ? "hourglass_top" : "block"}
-                      title={isPending ? "Akun menunggu persetujuan" : loginNotice.status === "ditolak" ? "Pendaftaran ditolak" : "Akun dinonaktifkan"}
-                      style={{ marginBottom: 24 }}>{loginNotice.message}</InlineNotice>
-                  );
-                })()}
-                  <div style={{ marginBottom: "24px" }}>
-                    <label style={labelStyle}>Alamat Email</label>
-                    <input 
-                      type="email" 
-                      value={email} 
-                      onChange={(e) => setEmail(e.target.value)} 
-                      style={inputStyle}
-                      required
-                    />
+                {mode === "login" && <>
+                  {loginNotice && <InlineNotice className="auth-status" role="alert" tone={loginNotice.status === "menunggu" ? "warning" : "error"} icon={loginNotice.status === "menunggu" ? "hourglass_top" : "block"} title={loginNotice.status === "menunggu" ? "Akun menunggu persetujuan" : loginNotice.status === "ditolak" ? "Pendaftaran ditolak" : "Akun dinonaktifkan"}>{loginNotice.message}</InlineNotice>}
+                  <div className="auth-fields">
+                    <div className="auth-field"><label htmlFor="login-email">Email</label><input id="login-email" name="email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@email.com" required /></div>
+                    <PasswordField id="login-password" value={password} onChange={setPassword} visible={showPassword} onToggle={() => setShowPassword((value) => !value)} />
                   </div>
-  
-                  <div style={{ marginBottom: "24px" }}>
-                    <label style={labelStyle}>Kata Sandi</label>
-                    <div style={{ position: "relative" }}>
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        style={{ ...inputStyle, paddingRight: "48px" }}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", padding: "4px", display: "flex" }}
-                        title={showPassword ? "Sembunyikan sandi" : "Tampilkan sandi"}
-                      >
-                        <Icon name={showPassword ? "visibility_off" : "visibility"} style={{ fontSize: "20px" }} />
-                      </button>
-                    </div>
+                  <button className="auth-submit" type="submit" disabled={isLoading} aria-busy={isLoading}>{isLoading ? "Memproses…" : "Masuk"}<Icon name={isLoading ? "hourglass_top" : "arrow_forward"} /></button>
+                  <div className="auth-divider"><span>atau</span></div>
+                  <a className="google-btn" href={apiUrl("/api/auth/google/redirect")}><GoogleMark />Masuk dengan Google</a>
+                  <p className="auth-switch">Belum punya akun? <button type="button" className="auth-text-link" onClick={() => setMode("register")} disabled={isLoading}>Buat akun baru</button></p>
+                </>}
+
+                {mode === "register" && <>
+                  <fieldset className="auth-account-types"><legend>Jenis akun</legend><div className="acct-type-grid">
+                    {([{ value: "warga", title: "Warga", detail: "Lapor kejadian di sekitar Anda." }, { value: "peneliti", title: "Peneliti", detail: "Unduh dataset dan akses API." }] as const).map((option) => <label key={option.value} className="acct-type-card">
+                      <input type="radio" name="account_type" value={option.value} checked={accountType === option.value} onChange={() => setAccountType(option.value)} /><strong>{option.title}</strong><span>{option.detail}</span>
+                    </label>)}
+                  </div></fieldset>
+                  <InlineNotice className="auth-status" icon={isPeneliti ? "gavel" : "info"}>{isPeneliti ? "Permohonan peneliti ditinjau admin setelah email diverifikasi. Jelaskan tujuan penggunaan data di bawah." : "Akun warga dapat digunakan setelah verifikasi email. Untuk akun instansi BPBD, hubungi admin."}</InlineNotice>
+                  <div className="auth-fields">
+                    <div className="auth-field"><label htmlFor="reg-name">Nama lengkap</label><input id="reg-name" name="name" autoComplete="name" value={regName} onChange={(event) => setRegName(event.target.value)} placeholder="Nama lengkap Anda" required /></div>
+                    <div className="auth-field"><label htmlFor="reg-institution">{isPeneliti ? "Instansi / universitas" : <>Desa / wilayah <span className="auth-optional">(opsional)</span></>}</label><input id="reg-institution" name="institution" autoComplete={isPeneliti ? "organization" : "address-level3"} value={regInstitution} onChange={(event) => setRegInstitution(event.target.value)} placeholder={isPeneliti ? "Nama instansi atau universitas" : "Nama desa atau wilayah"} required={isPeneliti} /></div>
+                    <div className="auth-field"><label htmlFor="reg-email">Email</label><input id="reg-email" name="email" type="email" autoComplete="email" value={regEmail} onChange={(event) => setRegEmail(event.target.value)} placeholder="nama@email.com" required /></div>
+                    {isPeneliti && <div className="auth-field"><label htmlFor="reg-purpose">Tujuan penggunaan data</label><textarea id="reg-purpose" name="research_purpose" rows={3} maxLength={1000} minLength={30} value={regPurpose} onChange={(event) => setRegPurpose(event.target.value)} placeholder="Contoh: Penelitian pola rob di pesisir Lampung untuk tugas akhir." aria-describedby="reg-purpose-help" required /><p className="auth-field-hint" id="reg-purpose-help">Jelaskan topik penelitian dan data yang dibutuhkan. Minimal 30 karakter ({regPurpose.trim().length}/1000).</p></div>}
+                    <PasswordField id="reg-password" value={regPassword} onChange={setRegPassword} visible={showRegPassword} onToggle={() => setShowRegPassword((value) => !value)} registering />
                   </div>
-                {/* "Ingat saya" dihapus: checkbox lama tidak tersambung ke
-                    apa pun (sesi selalu tersimpan di localStorage) — kontrol
-                    mati hanya menyesatkan. */}
-                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "32px" }}>
-                  <a href="#/forgot-password" className="link-btn" style={{ fontSize: "14px", color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>Lupa sandi?</a>
-                </div>
-                <button 
-                  className="btn solid" 
-                  type="submit" 
-                  style={{ width: "100%", background: "var(--accent)", color: "#fff", padding: "14px", borderRadius: 8, fontSize: "15px", fontWeight: 600, border: "none", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", cursor: "pointer", transition: "background 0.2s" }} 
-                  disabled={isLoading}
-                >
-                {isLoading ? "Memproses..." : "Masuk"}
-              </button>
+                  <button className="auth-submit" type="submit" disabled={isLoading} aria-busy={isLoading}>{isLoading ? "Memproses…" : isPeneliti ? "Ajukan akun peneliti" : "Buat akun warga"}<Icon name={isLoading ? "hourglass_top" : "arrow_forward"} /></button>
+                  <p className="auth-switch">Sudah punya akun? <button type="button" className="auth-text-link" onClick={() => setMode("login")} disabled={isLoading}>Masuk</button></p>
+                </>}
 
-              <div style={{ display: "flex", alignItems: "center", margin: "24px 0" }}>
-                <div className="divider-line" style={{ flex: 1, height: "1px", background: "var(--line)" }}></div>
-                <span className="or-text" style={{ padding: "0 16px", color: "var(--ink-soft)", fontSize: "13px" }}>atau</span>
-                <div className="divider-line" style={{ flex: 1, height: "1px", background: "var(--line)" }}></div>
-              </div>
-
-                <a 
-                  className="google-btn"
-                  href={apiUrl("/api/auth/google/redirect")}
-                  style={{ width: "100%", background: "var(--surface)", color: "var(--ink)", padding: "14px", borderRadius: 8, fontSize: "15px", fontWeight: 600, border: "1px solid var(--line)", display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", cursor: "pointer", textDecoration: "none", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", transition: "all 0.2s" }}
-                >
-                <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Masuk dengan Google
-              </a>
-
-                <div style={{ marginTop: "40px", textAlign: "center", fontSize: "14px", color: "var(--ink-soft)" }}>
-                  <span className="or-text">Belum punya akun?</span>{" "}
-                  <button 
-                    type="button" 
-                    className="link-btn"
-                    onClick={() => setMode("register")}
-                    style={{ background: "none", border: "none", color: "var(--accent)", fontWeight: 600, cursor: "pointer", padding: 0 }}
-                  >
-                  Buat akun baru
-                </button>
-              </div>
-            </motion.form>
-            ) : (
-              <motion.form 
-                key="register"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -10 }}
-                onSubmit={handleRegister}
-              >
-                <div className="auth-header-text" style={{ marginBottom: "24px" }}>
-                  <h2 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0 0 12px", color: "var(--ink)" }}>Buat Akun Baru</h2>
-                  <p style={{ color: "var(--ink-soft)", fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>Pilih jenis akun yang sesuai. Kami akan mengirim kode verifikasi ke email Anda.</p>
-                </div>
-
-                {/* Pilihan jenis akun. Keduanya lewat endpoint yang sama; server
-                    yang memetakannya ke peran & status, jadi pemohon tak bisa
-                    memilih "peneliti + langsung aktif" dari sisi klien. */}
-                <div role="radiogroup" aria-label="Jenis akun" className="acct-type-grid" style={{ marginBottom: "20px" }}>
-                  {([
-                    { v: "warga", icon: "groups", title: "Warga", desc: "Melaporkan kejadian rob di sekitar Anda. Aktif setelah verifikasi email." },
-                    { v: "peneliti", icon: "science", title: "Peneliti", desc: "Mengunduh dataset & akses API. Ditinjau admin sebelum aktif." },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.v}
-                      type="button"
-                      role="radio"
-                      aria-checked={accountType === opt.v}
-                      onClick={() => setAccountType(opt.v)}
-                      className="acct-type-card"
-                      data-selected={accountType === opt.v || undefined}
-                    >
-                      <Icon name={opt.icon} style={{ fontSize: "22px" }} />
-                      <span className="acct-type-title">{opt.title}</span>
-                      <span className="acct-type-desc">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <InlineNotice icon={isPeneliti ? "gavel" : "info"} style={{ marginBottom: 24 }}>
-                    {isPeneliti
-                      ? "Akun peneliti memberi akses dataset dan API penelitian. Admin meninjau tujuan penggunaan sebelum akses diaktifkan."
-                      : "Untuk akun instansi BPBD, hubungi admin."}
-                </InlineNotice>
-
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={labelStyle} htmlFor="reg-name">Nama Lengkap</label>
-                  <input
-                    id="reg-name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    style={inputStyle}
-                    required
-                  />
-                </div>
-
-                {/* Satu kolom, dua makna: catatan wilayah bagi warga, dan
-                    identitas lembaga yang wajib bagi peneliti. */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={labelStyle} htmlFor="reg-institution">
-                    {isPeneliti ? "Instansi / Universitas" : (
-                      <>Desa / Wilayah <span style={{ color: "var(--ink-soft)", fontWeight: 400 }}>(Opsional)</span></>
-                    )}
-                  </label>
-                  <input
-                    id="reg-institution"
-                    name="institution"
-                    type="text"
-                    autoComplete="organization"
-                    value={regInstitution}
-                    onChange={(e) => setRegInstitution(e.target.value)}
-                    placeholder={isPeneliti ? "mis. Universitas Lampung — Fakultas Teknik" : ""}
-                    style={inputStyle}
-                    required={isPeneliti}
-                  />
-                </div>
-
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={labelStyle} htmlFor="reg-email">Alamat Email</label>
-                  <input
-                    id="reg-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    style={inputStyle}
-                    required
-                  />
-                  {isPeneliti && (
-                    <p style={{ margin: "6px 0 0", fontSize: "12.5px", color: "var(--ink-soft)", lineHeight: 1.5 }}>
-                      Sebisa mungkin pakai email resmi instansi — alamat institusional mempercepat admin memastikan permohonan Anda.
-                    </p>
-                  )}
-                </div>
-
-                {isPeneliti && (
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={labelStyle} htmlFor="reg-purpose">Tujuan Penggunaan Data</label>
-                    <textarea
-                      id="reg-purpose"
-                      name="research_purpose"
-                      value={regPurpose}
-                      onChange={(e) => setRegPurpose(e.target.value)}
-                      rows={4}
-                      maxLength={1000}
-                      placeholder="Contoh: Penelitian skripsi tentang pola banjir rob di pesisir Bandar Lampung. Data laporan tervalidasi & prediksi harian akan dipakai untuk memvalidasi model genangan."
-                      style={{ ...inputStyle, resize: "vertical", minHeight: "110px", fontFamily: "inherit", lineHeight: 1.55 }}
-                      required
-                    />
-                    <p style={{ margin: "6px 0 0", fontSize: "12.5px", color: regPurpose.trim().length > 0 && regPurpose.trim().length < 30 ? "var(--critical)" : "var(--ink-soft)", lineHeight: 1.5 }}>
-                      Sebutkan judul/topik penelitian dan data apa yang dibutuhkan. Minimal 30 karakter ({regPurpose.trim().length}/1000).
-                    </p>
-                  </div>
-                )}
-
-                <div style={{ marginBottom: "32px" }}>
-                  <label style={labelStyle}>Kata Sandi</label>
-                  <div style={{ position: "relative" }}>
-                    <input 
-                      type={showRegPassword ? "text" : "password"} 
-                      value={regPassword} 
-                      onChange={(e) => setRegPassword(e.target.value)} 
-                      style={{ ...inputStyle, paddingRight: "48px" }}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", padding: "4px", display: "flex" }}
-                      title={showRegPassword ? "Sembunyikan sandi" : "Tampilkan sandi"}
-                    >
-                      <Icon name={showRegPassword ? "visibility_off" : "visibility"} style={{ fontSize: "20px" }} />
-                    </button>
-                  </div>
-                </div>
-
-                  <button 
-                    className="btn solid" 
-                    type="submit" 
-                    style={{ width: "100%", background: "var(--accent)", color: "#fff", padding: "14px", borderRadius: "10px", fontSize: "15px", fontWeight: 600, border: "none", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", cursor: "pointer", transition: "background 0.2s" }} 
-                    disabled={isLoading}
-                  >
-                  {isLoading ? "Memproses..." : isPeneliti ? "Kirim Permohonan Akun Peneliti" : "Daftar Akun"}
-                </button>
-
-                <div style={{ marginTop: "40px", textAlign: "center", fontSize: "14px", color: "var(--ink-soft)" }}>
-                  <span className="or-text">Sudah punya akun?</span>{" "}
-                  <button 
-                    type="button" 
-                    className="link-btn"
-                    onClick={() => setMode("login")}
-                    style={{ background: "none", border: "none", color: "var(--accent)", fontWeight: 600, cursor: "pointer", padding: 0 }}
-                  >
-                    Masuk ke Dashboard
-                  </button>
-                </div>
+                {mode === "verify" && <>
+                  {awaitingApproval && <InlineNotice className="auth-status" role="status" tone="warning" icon="hourglass_top">Setelah verifikasi email, permohonan peneliti Anda akan menunggu persetujuan admin.</InlineNotice>}
+                  <div className="auth-field"><label htmlFor="otp">Kode verifikasi</label><input id="otp" className="auth-otp" name="otp" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))} placeholder="000000" autoFocus required /></div>
+                  <button className="auth-submit" type="submit" disabled={isLoading} aria-busy={isLoading}>{isLoading ? "Memverifikasi…" : "Verifikasi email"}<Icon name={isLoading ? "hourglass_top" : "check"} /></button>
+                  <p className="auth-switch">Belum menerima kode? <button type="button" className="auth-text-link" onClick={handleResendOtp} disabled={isLoading}>Kirim ulang</button></p>
+                  <button type="button" className="auth-return auth-text-link" onClick={() => setMode("login")} disabled={isLoading}><Icon name="arrow_back" />Kembali ke halaman masuk</button>
+                </>}
               </motion.form>
-            )}
-          </AnimatePresence>
-
-          {mode === "verify" && (
-            <form onSubmit={handleVerifyOtp}>
-              <div className="auth-header-text" style={{ marginBottom: "32px" }}>
-                <h2 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "0 0 8px", color: "var(--ink)" }}>Verifikasi email</h2>
-                <p style={{ color: "var(--ink-soft)", fontSize: "0.95rem", margin: 0 }}>
-                  Kami mengirim kode 6 digit ke <strong style={{ color: "var(--ink)" }}>{verifyEmail}</strong>.{" "}
-                  {awaitingApproval
-                    ? "Masukkan kodenya untuk membuktikan alamat ini milik Anda."
-                    : "Masukkan kodenya untuk mengaktifkan akun."}
-                </p>
-              </div>
-
-              {/* Permohonan peneliti punya SATU langkah lagi setelah OTP.
-                  Tanpa keterangan ini pemohon mengira verifikasi gagal saat
-                  loginnya tetap ditolak. */}
-              {awaitingApproval && (
-                <InlineNotice role="status" tone="warning" icon="hourglass_top" style={{ marginBottom: 24 }}>
-                    Setelah email terverifikasi, permohonan akun peneliti Anda masuk ke antrean admin. Anda akan bisa masuk begitu admin menyetujuinya.
-                </InlineNotice>
-              )}
-
-              <div style={{ marginBottom: "24px" }}>
-                <label style={labelStyle} htmlFor="otp">Kode Verifikasi</label>
-                <input
-                  id="otp"
-                  name="otp"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  placeholder="123456"
-                  autoFocus
-                  style={{ ...inputStyle, letterSpacing: "0.5em", textAlign: "center", fontSize: "20px", fontWeight: 700 }}
-                />
-              </div>
-
-              <button
-                className="btn solid"
-                type="submit"
-                style={{ width: "100%", background: "var(--accent)", color: "#fff", padding: "14px", borderRadius: "10px", fontSize: "15px", fontWeight: 600, border: "none", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", cursor: "pointer" }}
-                disabled={isLoading}
-                data-loading={isLoading || undefined}
-              >
-                {isLoading ? "Memverifikasi..." : "Verifikasi & Aktifkan"}
-              </button>
-
-              <div style={{ marginTop: "24px", textAlign: "center", fontSize: "14px", color: "var(--ink-soft)" }}>
-                <span className="or-text">Tidak menerima kode?</span>{" "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={handleResendOtp}
-                  disabled={isLoading}
-                  style={{ background: "none", border: "none", color: "var(--accent)", fontWeight: 600, cursor: "pointer", padding: 0 }}
-                >
-                  Kirim ulang
-                </button>
-              </div>
-
-              <div style={{ marginTop: "16px", textAlign: "center", fontSize: "14px", color: "var(--ink-soft)" }}>
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => setMode("login")}
-                  style={{ background: "none", border: "none", color: "var(--ink-soft)", fontWeight: 600, cursor: "pointer", padding: 0 }}
-                >
-                  Kembali ke halaman masuk
-                </button>
-              </div>
-            </form>
-          )}
-        </motion.div>
+            </AnimatePresence>
+          </div>
+          <a className="auth-mobile-public" href="#/map">Lihat peta tanpa masuk<Icon name="arrow_forward" /></a>
+        </div>
       </section>
-      <style>{`
-        .login-main {
-          display: flex;
-          width: 100%;
-          min-height: 100vh;
-          font-family: var(--font);
-          justify-content: center;
-          background: var(--bg);
-        }
-        .auth-form-section {
-          flex: 1 1 100%;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 40px 24px;
-          min-height: 100vh;
-          box-sizing: border-box;
-        }
-        .auth-card-wrapper {
-          width: 100%;
-          max-width: 440px;
-          margin: 0 auto;
-          box-sizing: border-box;
-        }
-        .mobile-only-header {
-          margin-bottom: 32px;
-          text-align: center;
-        }
-        .mobile-logo-badge {
-          display: inline-flex;
-          width: 52px;
-          height: 52px;
-          background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(14, 165, 233, 0.25) 100%);
-          color: var(--accent);
-          border-radius: 16px;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 12px;
-          box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
-        }
-        .mobile-brand-title {
-          margin: 0;
-          font-size: 1.5rem;
-          font-weight: 850;
-          letter-spacing: -0.02em;
-          color: var(--ink);
-        }
-
-        /* Pilihan jenis akun. Dua kartu sejajar; pada layar sempit menumpuk
-           agar deskripsinya tetap terbaca dan tidak terpotong. */
-        .acct-type-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-        @media (max-width: 420px) {
-          .acct-type-grid { grid-template-columns: 1fr; }
-        }
-        .acct-type-card {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 4px;
-          padding: 14px;
-          border-radius: 12px;
-          border: 1px solid var(--line);
-          background: var(--surface);
-          color: var(--ink-soft);
-          cursor: pointer;
-          text-align: left;
-          font-family: inherit;
-          transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
-        }
-        .acct-type-card:hover { border-color: var(--accent); }
-        .acct-type-card:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 2px;
-        }
-        .acct-type-card[data-selected] {
-          border-color: var(--accent);
-          background: var(--accent-soft, rgba(2, 132, 199, 0.08));
-          color: var(--accent);
-        }
-        .acct-type-title {
-          font-size: 15px;
-          font-weight: 700;
-          color: var(--ink);
-        }
-        .acct-type-desc {
-          font-size: 12px;
-          line-height: 1.45;
-          color: var(--ink-soft);
-        }
-
-        @media (min-width: 1024px) {
-          .desktop-flex {
-            display: flex !important;
-            flex: 1 1 50% !important;
-          }
-          .auth-form-section {
-            flex: 1 1 50% !important;
-          }
-          .mobile-only {
-            display: none !important;
-          }
-        }
-
-        @media (max-width: 1023px) {
-          .login-main {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.90) 0%, rgba(30, 64, 175, 0.85) 100%), url('/bg-laut.jpg') center/cover no-repeat !important;
-            background-attachment: fixed !important;
-          }
-          .auth-form-section {
-            flex: 1 1 100% !important;
-            width: 100% !important;
-            padding: 24px 20px !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            min-height: 100dvh !important;
-          }
-          .auth-card-wrapper {
-            width: 100% !important;
-            max-width: 440px !important;
-            margin: 0 auto !important;
-            background: rgba(255, 255, 255, 0.05) !important;
-            backdrop-filter: blur(24px) !important;
-            -webkit-backdrop-filter: blur(24px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.15) !important;
-            border-radius: 28px !important;
-            padding: 40px 28px !important;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.3) !important;
-          }
-          .auth-header-text {
-            text-align: center !important;
-          }
-          .mobile-only-header {
-            margin-bottom: 24px !important;
-          }
-          .mobile-logo-badge {
-            width: 44px !important;
-            height: 44px !important;
-            border-radius: 14px !important;
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(14, 165, 233, 0.3) 100%) !important;
-            color: #38bdf8 !important;
-          }
-          .mobile-brand-title, .auth-card-wrapper h2, .auth-card-wrapper label {
-            color: #ffffff !important;
-          }
-          .auth-card-wrapper .auth-header-text p, .auth-card-wrapper .or-text, .auth-card-wrapper .back-btn-global {
-            color: rgba(255, 255, 255, 0.7) !important;
-          }
-          .auth-card-wrapper .back-btn-global:hover {
-            color: rgba(255, 255, 255, 1) !important;
-          }
-          .auth-card-wrapper input {
-            background: rgba(255, 255, 255, 0.1) !important;
-            border-color: rgba(255, 255, 255, 0.2) !important;
-            color: #ffffff !important;
-          }
-          .auth-card-wrapper input:focus {
-            background: rgba(255, 255, 255, 0.15) !important;
-            border-color: #60a5fa !important;
-            box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2) !important;
-          }
-          .auth-card-wrapper .google-btn {
-            background: rgba(255, 255, 255, 0.1) !important;
-            border-color: rgba(255, 255, 255, 0.2) !important;
-            color: #ffffff !important;
-          }
-          .auth-card-wrapper .google-btn:hover {
-            background: rgba(255, 255, 255, 0.15) !important;
-          }
-          .auth-card-wrapper .divider-line {
-            background: rgba(255, 255, 255, 0.2) !important;
-          }
-          .auth-card-wrapper .link-btn {
-            color: #60a5fa !important;
-          }
-          .auth-card-wrapper input[type="checkbox"] {
-            accent-color: #60a5fa !important;
-          }
-          .auth-card-wrapper .inline-notice { color: rgba(255, 255, 255, 0.8); }
-          .auth-card-wrapper .inline-notice-title { color: #fff; }
-          .auth-card-wrapper .inline-notice > .material-symbols-outlined { color: #7dd3fc; }
-          .auth-card-wrapper .inline-notice.warning > .material-symbols-outlined { color: #fde68a; }
-          .auth-card-wrapper .inline-notice.error > .material-symbols-outlined { color: #fca5a5; }
-          .auth-card-wrapper button[title] {
-            color: rgba(255, 255, 255, 0.6) !important;
-          }
-        }
-      `}</style>
     </main>
   );
 }
-
