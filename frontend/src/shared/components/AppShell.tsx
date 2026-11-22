@@ -34,12 +34,13 @@ function formatNotifWhen(iso: string): string {
   return `${date} · ${time}`;
 }
 
-export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
+export function AppShell({ active, title, subtitle, breadcrumbs, children, className = "" }: {
   active: string;
   title: string;
   subtitle?: string;
   breadcrumbs?: BreadcrumbItem[];
   children: ReactNode;
+  className?: string;
 }) {
   const toast = useToast();
   const [isSidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem(SIDEBAR_STORAGE_KEY) !== "closed");
@@ -138,7 +139,7 @@ export function AppShell({ active, title, subtitle, breadcrumbs, children }: {
   })();
 
   return (
-    <div className={`app-shell ${isSidebarOpen ? "" : "sidebar-collapsed"}`}>
+    <div className={`app-shell ${isSidebarOpen ? "" : "sidebar-collapsed"} ${className}`}>
       {/* Skip-link a11y: onClick + focus (bukan hash-anchor) agar tak bentrok
           dengan hash routing aplikasi. */}
       <a

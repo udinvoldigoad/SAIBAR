@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { motion, type Variants } from "framer-motion";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { api } from "../../shared/api/client";
 import { AppShell } from "../../shared/components/AppShell";
 import { Icon } from "../../shared/components/Icon";
+import { InlineNotice } from "../../shared/components/InlineNotice";
+import { Skeleton } from "../../shared/components/Skeleton";
 import { riskColors, riskLabels } from "../../shared/constants/risk";
 import { getCurrentUser } from "../../shared/auth/session";
 import { severityLabels, type ReportSeverity } from "../reports/reportData";
+import "./publicMap.css";
+import { formatMapDate, MapRegionPanel, MapRegionSheet } from "./MapRegionPanel";
 
 type GeoJsonFeature = { type: "Feature"; id: string; geometry: { type: string; coordinates: unknown }; properties: Record<string, unknown> };
 type FeatureCollection = { type: "FeatureCollection"; features: GeoJsonFeature[] };
@@ -43,8 +48,6 @@ const regencyCoordinates: Record<string, { center: [number, number]; zoom: numbe
   "Kabupaten Pringsewu": { center: [104.9800, -5.3500], zoom: 11 },
   "Kota Metro": { center: [105.3000, -5.1100], zoom: 12 },
 };
-const containerVariants: Variants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1, ease: "easeOut" } } };
-const itemVariants: Variants = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
 const numberFormatter = new Intl.NumberFormat("id-ID");
 
 function riskText(value: unknown) {
@@ -150,6 +153,7 @@ function FilterSelect({ icon, ariaLabel, value, options, onChange }: {
   options: { value: string; label: string; short?: string }[];
   onChange: (value: string) => void;
 }) {
+  const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -178,9 +182,9 @@ function FilterSelect({ icon, ariaLabel, value, options, onChange }: {
       </button>
       {open && (
         <motion.div
-          initial={{ opacity: 0, y: -6 }}
+          initial={reducedMotion ? false : { opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: .15 }}
+          transition={{ duration: reducedMotion ? 0 : .15 }}
           className="filter-select-dropdown"
           role="listbox"
         >
@@ -242,7 +246,13 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
     map.current.addControl(new maplibregl.NavigationControl(), "top-right");
     map.current.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-right");
     map.current.on("load", () => { mapLoaded.current = true; });
-    return () => { map.current?.remove(); map.current = null; mapLoaded.current = false; };
+    let resizeFrame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => map.current?.resize());
+    });
+    observer.observe(mapContainer.current);
+    return () => { observer.disconnect(); cancelAnimationFrame(resizeFrame); map.current?.remove(); map.current = null; mapLoaded.current = false; };
   }, []);
 
   // Penanda "Anda di sini" pada koordinat asli pengguna + terbang ke titik itu.
@@ -653,6 +663,17 @@ function RiskMap({ regions, reports, layers, activeLayers, selectedRegency, user
 
 export function PublicMapPage() {
   const userRole = getCurrentUser()?.role ?? "";
+  const reducedMotion = useReducedMotion();
+  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1080px)").matches);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const closeDetails = useCallback(() => setDetailOpen(false), []);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1080px)");
+    const sync = () => { setCompact(query.matches); setDetailOpen(false); };
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
 
   const [regions, setRegions] = useState<FeatureCollection>({ type: "FeatureCollection", features: [] });
   const [reports, setReports] = useState<FeatureCollection>({ type: "FeatureCollection", features: [] });
@@ -723,9 +744,11 @@ export function PublicMapPage() {
       // sementara peta masih menggambar zona dari tanggal sebelumnya.
       setRegions({ type: "FeatureCollection", features: [] });
       setReports({ type: "FeatureCollection", features: [] });
+      setFreshness(null);
+      setActiveWarning(null);
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [selectedDate, selectedRegency]);
+  }, [selectedDate, selectedRegency, reloadVersion]);
 
   const regencies = useMemo(() => {
     const fromData = catalog.map((item) => item.region?.regency).filter(Boolean);
@@ -749,7 +772,7 @@ export function PublicMapPage() {
     });
   }, [regions, highestRisk]);
 
-  const handleSelectFeature = useCallback((feature: GeoJsonFeature) => setSelectedFeature(feature), []);
+  const handleSelectFeature = useCallback((feature: GeoJsonFeature) => { setSelectedFeature(feature); setDetailOpen(true); }, []);
 
   // Deteksi lokasi: ambil koordinat pengguna, pilih wilayah pantau TERDEKAT, lalu
   // filter peta ke kabupatennya (memicu zoom). Perbandingan jarak kuadrat pada
@@ -781,6 +804,7 @@ export function PublicMapPage() {
         }
         // Panel kanan menampilkan risiko wilayah pantau terdekat dari posisi.
         setSelectedFeature(nearest);
+        setDetailOpen(true);
       },
       (geoError) => {
         setLocating(false);
@@ -794,439 +818,84 @@ export function PublicMapPage() {
     );
   }, [regions]);
 
-  const selectedRiskClass = String(selectedFeature?.properties.risk_class ?? "");
-  const selectedColor = riskColors[selectedRiskClass] ?? "var(--accent)";
-  const selectedPopulation = selectedFeature?.properties.population;
-  const toolbarHorizon = selectedDate === "all" ? "Prediksi terbaru" : `Prediksi ${horizonLabel(selectedDate)}`;
+  const overallRisk = String(highestRisk?.properties.risk_class ?? "");
+  const elevatedRisk = ["tinggi", "sangat_tinggi"].includes(overallRisk);
+  const highRiskCount = regions.features.filter((feature) => ["tinggi", "sangat_tinggi"].includes(String(feature.properties.risk_class))).length;
+  const riskStatus = loading ? "Memuat kondisi wilayah…" : error ? "Data peta belum tersedia" : highestRisk ? `Risiko saat ini ${riskText(overallRisk).toLowerCase()}` : "Belum ada prediksi untuk pilihan ini";
+  const activeFilterCount = Number(selectedDate !== "all") + Number(selectedRegency !== "all");
+  const activeLayerCount = Object.values(activeLayers).filter(Boolean).length;
+  const details = <MapRegionPanel feature={loading ? null : selectedFeature} userRole={userRole} loading={loading} lastGeneratedAt={freshness?.last_generated_at} />;
+  const notices = (error || locError || activeWarning || isStaleData) && <div className="map-notices">
+    {error && <InlineNotice tone="error">{error} Gunakan tombol muat ulang untuk mencoba kembali.</InlineNotice>}
+    {locError && <InlineNotice tone="error">{locError}</InlineNotice>}
+    {activeWarning && <InlineNotice tone="warning" icon="campaign" title={activeWarning.title || "Peringatan risiko"}>{activeWarning.message}</InlineNotice>}
+    {isStaleData && <InlineNotice tone="warning" icon="history" title="Prediksi belum diperbarui">{freshness?.notice ?? "Menampilkan pembaruan terakhir. Periksa kondisi di lapangan."}</InlineNotice>}
+  </div>;
 
-  // Dua panel peringatan dipakai di dua posisi berbeda: di ATAS peta saat mobile,
-  // dan di kolom kanan saat desktop. Didefinisikan sekali di sini lalu dirender
-  // pada dua wadah yang saling eksklusif lewat media query (lihat .map-warnings-*).
-  const warningPanels = (
-    <>
-      <motion.div variants={itemVariants} className="panel" style={{ padding: 16, borderLeft: `3px solid ${riskColors[String(highestRisk?.properties.risk_class)] ?? "var(--accent)"}` }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <Icon name="warning" style={{ fontSize: 20, color: riskColors[String(highestRisk?.properties.risk_class)] ?? "var(--accent)", flexShrink: 0 }} />
-          <div>
-            <strong style={{ display: "block", marginBottom: 3, color: "var(--ink)", fontSize: 13 }}>{highestRisk ? `Risiko ${riskText(highestRisk.properties.risk_class)} terdeteksi` : loading ? "Memuat peringatan risiko" : "Tidak ada prediksi untuk tanggal ini"}</strong>
-            <span style={{ color: "var(--ink-soft)", fontSize: 12, lineHeight: 1.5 }}>{highestRisk ? `${highestRisk.properties.village ?? "Wilayah pesisir"}, ${highestRisk.properties.regency ?? "Lampung"} · peluang rob ${Math.round(Number(highestRisk.properties.risk_probability ?? 0))}%` : loading ? "Mengambil data peta dari server." : "Coba pilih tanggal atau kabupaten lain."}</span>
+  return (
+    <AppShell active="map" title="Peta Risiko Rob" className="map-app-shell">
+      <div className="map-workspace">
+        <header className="map-workspace-head">
+          <div><h1>Peta risiko rob</h1><p>Pantauan wilayah pesisir Provinsi Lampung.</p></div>
+          <div className="map-workspace-update">
+            <span>{freshness?.last_generated_at ? `Pembaruan ${formatMapDate(freshness.last_generated_at, true)}` : "Pembaruan data belum tersedia"}</span>
+            <button type="button" className="map-icon-action" aria-label="Muat ulang data peta" title="Muat ulang data peta" disabled={loading} onClick={() => setReloadVersion((value) => value + 1)}><Icon name="refresh" /></button>
           </div>
-        </div>
-        {(!userRole || userRole === "warga") && <a className="btn secondary" href="#/awam" style={{ marginTop: 12, width: "100%", justifyContent: "center" }}>Lihat mode awam</a>}
-      </motion.div>
-      {isStaleData && <motion.div variants={itemVariants} className="panel" style={{ padding: 16, borderLeft: "3px solid #d97706", background: "#fef3c7" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <Icon name="history" style={{ fontSize: 20, color: "#b45309", flexShrink: 0 }} />
-          <div>
-            <strong style={{ display: "block", marginBottom: 3, color: "#78350f", fontSize: 13 }}>Prediksi Belum Diperbarui</strong>
-            <span style={{ color: "#92400e", fontSize: 12, lineHeight: 1.5 }}>{freshness?.notice ?? `Pembaruan prediksi harian tertunda. Anda melihat prediksi yang dibuat ${freshness?.last_generated_at ? String(freshness.last_generated_at).substring(0, 10) : "sebelumnya"}.`}</span>
-          </div>
-        </div>
-      </motion.div>}
-    </>
-  );
+        </header>
 
-  return <AppShell active="map" title="Peta Bahaya Rob" subtitle="Pantau prediksi risiko banjir rob per wilayah pesisir Provinsi Lampung.">
-    <style>{`
-      .public-map-layout {
-        display: grid;
-        grid-template-columns: 1fr 340px;
-        gap: 24px;
-        align-items: start;
-      }
-      /* Desktop: peringatan tampil di kolom kanan. Wadah mobile di-display:none
-         sehingga tidak ikut menempati sel grid (grid tetap 2 kolom). */
-      .map-warnings-desktop { display: grid; gap: 14px; }
-      .map-warnings-mobile { display: none; }
-      .map-filter-bar {
-        display: flex;
-        align-items: flex-start;
-        gap: 28px;
-        row-gap: 16px;
-        flex-wrap: wrap;
-      }
-      /* Desktop lebar: paksa 3 kolom sebaris. Panel di layout ini cukup sempit
-         (≈ viewport − 732px), jadi 3 kolom baru dipaksa mulai 1280px; di bawahnya
-         tetap wrap agar label & tombol tak berdesakan. */
-      @media (min-width: 1280px) {
-        .map-filter-bar {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          align-items: start;
-          gap: 20px;
-        }
-        /* minmax(0,1fr) butuh anak yang boleh menyusut; inline field punya
-           min-width:190 sehingga di-nol-kan agar 3 kolom muat sebaris. */
-        .map-filter-bar > div { min-width: 0 !important; }
-        /* Kolom lebih ramping: rapatkan tombol & ringkas teks layer jadi
-           "1 dari 6" agar muat tanpa terpotong. */
-        .map-filter-bar .layer-menu-btn { padding: 0 12px; gap: 7px; }
-        .map-filter-bar .layer-btn-suffix { display: none; }
-      }
-      /* Teks tombol layer dipangkas rapi bila kolom sempit (tak mepet). */
-      .map-filter-bar .layer-menu-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .map-filter-bar > label {
-        display: grid;
-        gap: 9px;
-        flex: 1;
-        min-width: 190px;
-        max-width: 320px;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--ink-soft);
-        text-transform: uppercase;
-        letter-spacing: .5px;
-      }
-      .map-filter-bar select { min-height: 44px; }
-      /* Dropdown custom horizon & kabupaten — seragam dengan dropdown layer. */
-      .filter-select-dropdown {
-        position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 20;
-        min-width: 100%;
-        background: var(--surface); border: 1px solid var(--line);
-        border-radius: 12px; box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
-        padding: 6px; display: grid; gap: 1px;
-        max-height: 288px; overflow-y: auto;
-      }
-      .filter-option {
-        display: flex; align-items: center; gap: 8px;
-        width: 100%; padding: 9px 12px; border-radius: 8px;
-        font: inherit; font-size: 13px; font-weight: 500; color: var(--ink);
-        background: transparent; border: 0; cursor: pointer;
-        text-align: left; white-space: nowrap;
-        transition: background .12s;
-      }
-      .filter-option:hover { background: var(--surface-soft); }
-      .filter-option[aria-selected="true"] { background: var(--surface-soft); color: var(--accent); font-weight: 700; }
-      .layer-menu-btn { transition: border-color .15s, box-shadow .15s; }
-      .layer-menu-btn:hover, .layer-menu-btn[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 1px 6px rgba(2, 132, 199, .12); }
-      .layer-option { transition: background .12s; }
-      .layer-option:hover { background: var(--surface-soft); }
-      /* Tombol ringkas filter — hanya tampil di mobile (lihat media query). */
-      .map-filter-toggle {
-        display: none;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-        padding: 14px 18px;
-        background: var(--surface);
-        border: none;
-        border-bottom: 1px solid var(--line);
-        color: var(--ink);
-        font: inherit;
-        font-size: 14px;
-        font-weight: 600;
-        text-align: left;
-        cursor: pointer;
-      }
-      .map-viewport { position: relative; }
-      .map-viewport .map-toolbar {
-        right: auto;
-        width: auto;
-        max-width: calc(100% - 120px);
-        gap: 0;
-        box-shadow: 0 2px 10px rgba(15, 23, 42, .10);
-      }
-      .map-viewport .map-toolbar span {
-        color: var(--ink-soft);
-        font-weight: 600;
-        padding-right: 12px;
-      }
-      .map-viewport .map-toolbar strong {
-        color: var(--ink);
-        padding-left: 12px;
-        border-left: 1px solid var(--line);
-      }
-      .map-viewport .maplibregl-ctrl-top-right { z-index: 3; }
-      /* Penanda lokasi asli pengguna: titik biru dengan denyut halus. */
-      .user-location-marker {
-        width: 18px; height: 18px; border-radius: 50%;
-        background: #2563eb; border: 3px solid #fff;
-        box-shadow: 0 1px 4px rgba(15, 23, 42, .4);
-        animation: user-loc-pulse 2s ease-out infinite;
-      }
-      @keyframes user-loc-pulse {
-        0% { box-shadow: 0 1px 4px rgba(15,23,42,.4), 0 0 0 0 rgba(37,99,235,.45); }
-        70% { box-shadow: 0 1px 4px rgba(15,23,42,.4), 0 0 0 16px rgba(37,99,235,0); }
-        100% { box-shadow: 0 1px 4px rgba(15,23,42,.4), 0 0 0 0 rgba(37,99,235,0); }
-      }
-      /* Elemennya <button> asli — reset gaya bawaan browser (padding, font,
-         appearance) supaya lingkaran 30px-nya tetap presisi. */
-      .map-risk-badge {
-        align-items: center;
-        appearance: none;
-        background: #fff;
-        border: 2px solid currentColor;
-        border-radius: 999px;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, .3);
-        cursor: pointer;
-        display: flex;
-        font: inherit;
-        font-size: 0.8rem;
-        font-weight: 850;
-        height: 30px;
-        justify-content: center;
-        line-height: 1;
-        padding: 0;
-        width: 30px;
-        color: inherit;
-      }
-      .map-risk-badge:focus-visible {
-        outline: 3px solid var(--accent);
-        outline-offset: 2px;
-      }
-
-      /* Layout 1 kolom mulai dari tablet (<=1080px), disamakan dengan breakpoint
-         sidebar di tokens.css. Di 769-1080px layout lama (1fr 340px) menyisakan
-         peta hanya ~460px sementara panel mengambil 340px — sempit. Blok ini
-         SENGAJA hanya memuat aturan tingkat layout; penyesuaian tipografi mungil
-         khas ponsel tetap di blok <=768px agar tak ikut mengecil di tablet. */
-      @media(max-width: 1080px) {
-        .public-map-layout {
-          grid-template-columns: 1fr;
-          gap: 16px;
-        }
-
-        /* Grid jadi 1 kolom: peringatan naik ke atas peta, salinan kolom kanan
-           disembunyikan agar tidak tampil dobel. */
-        .map-warnings-mobile { display: grid; gap: 12px; }
-        .map-warnings-desktop { display: none; }
-      }
-
-      @media(max-width: 768px) {
-        /* Ketiga filter tampil sejajar 3 kolom rapat di atas peta (tanpa tombol
-           ringkas): hemat ruang vertikal & langsung terlihat. Baris label diberi
-           tinggi tetap agar label 1–2 baris tak menggeser sejajarnya kontrol. */
-        .map-filter-toggle { display: none; }
-
-        .map-filter-bar,
-        .map-filter-bar.is-open {
-          display: grid;
-          /* minmax(0,1fr), bukan 1fr (= minmax(auto,1fr)): tanpa ini kolom
-             berisi teks panjang (nama kabupaten) melebar & menekan kolom lain
-             ("mepet") alih-alih dipangkas. */
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          align-items: start;
-          gap: 8px;
-          padding: 12px 14px !important;
-        }
-        .map-filter-bar > div {
-          display: grid !important;
-          grid-template-rows: 26px auto;
-          /* Kolom implisit grid default auto (= max-content) membuat tombol
-             melebar ke lebar teks penuh & chevron terdorong keluar. minmax(0,1fr)
-             mengunci lebar ke sel sehingga teks dipangkas rapi. */
-          grid-template-columns: minmax(0, 1fr);
-          gap: 6px !important;
-          min-width: 0 !important;
-          max-width: none !important;
-          font-size: 10px;
-        }
-        .map-filter-bar > div > strong {
-          font-size: 10px !important;
-          letter-spacing: .3px !important;
-          line-height: 1.25;
-        }
-        /* Dropdown horizon & kabupaten dilebarkan agar teks opsi (mis. nama
-           kabupaten panjang) tak terpotong kolom sempit. */
-        .map-filter-bar .filter-select-dropdown {
-          min-width: 190px;
-          width: max-content;
-          max-width: calc(100vw - 40px);
-        }
-        .map-filter-bar .layer-menu-btn {
-          min-height: 42px !important;
-          padding: 0 6px !important;
-          gap: 4px !important;
-          font-size: 12px !important;
-        }
-        /* Ikon dikecilkan di mobile agar label pendek (mis. "Terbaru") muat utuh. */
-        .map-filter-bar .layer-menu-btn .material-symbols-outlined { font-size: 16px !important; }
-        /* Ikon layer (biru) tetap tampil; teks diringkas jadi "1 dari 6" saja
-           dengan menyembunyikan sufiks " layer aktif" agar muat kolom sempit. */
-        .map-filter-bar .layer-menu-btn > span {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .map-filter-bar .layer-btn-suffix { display: none; }
-        /* Dropdown layer dilebarkan agar label opsi tak terpotong kolom sempit;
-           dijangkarkan ke kanan supaya melebar ke kiri (tetap di dalam layar). */
-        .map-filter-bar .layer-dropdown {
-          left: auto !important;
-          right: 0 !important;
-          min-width: 200px;
-          width: max-content;
-          max-width: calc(100vw - 40px);
-        }
-
-        /* Dua lapis harus dibatasi: .map-container DAN div maplibre di dalamnya
-           (.map-canvas) yang punya minHeight 560 inline — kalau hanya luarnya,
-           konten dalam yang lebih tinggi tetap memaksa peta jadi 560px. */
-        .map-container,
-        .map-canvas {
-          min-height: 46vh !important;
-          height: 46vh !important;
-        }
-
-        .map-viewport .map-toolbar span { display: none; }
-        .map-viewport .map-toolbar strong { border-left: 0; padding-left: 0; }
-
-        /* Legenda dikeluarkan dari overlay peta: jadi strip mendatar di bawah
-           peta agar tidak menimpa atribusi OSM & skala, dan area peta tetap utuh.
-           (.legend sudah berada setelah .map-container di DOM.) */
-        .legend {
-          position: static;
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 8px 14px;
-          max-width: none;
-          padding: 12px 16px;
-          border: 0;
-          border-top: 1px solid var(--line);
-          border-radius: 0;
-          background: var(--surface);
-        }
-        .legend strong { width: 100%; font-size: 0.78rem; }
-        .legend span { font-size: 0.8rem; }
-      }
-    `}</style>
-    <motion.div variants={containerVariants} initial="hidden" animate="show" className="stack" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
-      {/* Kalimat pengantar dirender AppShell dari prop `subtitle` — jangan
-          ditulis ulang di sini (dulu prop-nya diabaikan, sekarang tidak). */}
-      {error && <div className="alert" style={{ borderLeftColor: "var(--critical)" }}>{error}</div>}
-      <motion.div variants={itemVariants} className="public-map-layout">
-        <div className="map-warnings-mobile">{warningPanels}</div>
-        <div className="panel flush" style={{ overflow: "hidden" }}>
-          <button
-            type="button"
-            className="map-filter-toggle"
-            onClick={() => setMobileFilterOpen((open) => !open)}
-            aria-expanded={mobileFilterOpen}
-          >
-            <Icon name="tune" style={{ fontSize: 18, color: "var(--accent)" }} />
-            <span style={{ flex: 1 }}>
-              Filter{(selectedDate !== "all" ? 1 : 0) + (selectedRegency !== "all" ? 1 : 0) > 0 ? ` · ${(selectedDate !== "all" ? 1 : 0) + (selectedRegency !== "all" ? 1 : 0)} aktif` : ""}
-            </span>
-            <Icon name="expand_more" style={{ fontSize: 18, color: "var(--ink-soft)", transform: mobileFilterOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+        <section className="map-controls" aria-label="Filter peta">
+          <button type="button" className="map-filter-toggle" onClick={() => setMobileFilterOpen((open) => !open)} aria-expanded={mobileFilterOpen} aria-controls="map-filters">
+            <Icon name="tune" /><span>Filter peta{activeFilterCount > 0 ? ` · ${activeFilterCount} aktif` : ""}</span><Icon name={mobileFilterOpen ? "expand_less" : "expand_more"} />
           </button>
-          <div className={`map-filter-bar${mobileFilterOpen ? " is-open" : ""}`} style={{ padding: "20px 24px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
-            <div className="filter-field" style={{ display: "flex", flexDirection: "column", gap: 9, flex: 1, minWidth: 190, maxWidth: 320 }}>
-              <strong style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: .5, color: "var(--ink-soft)" }}>Horizon prediksi</strong>
-              <FilterSelect
-                icon="schedule"
-                ariaLabel="Horizon prediksi"
-                value={selectedDate}
-                onChange={setSelectedDate}
-                options={[{ value: "all", label: "Terbaru" }, ...HORIZON_OPTIONS.map((horizon) => ({ value: dateFromOffset(horizon.offset), label: horizon.label }))]}
-              />
-            </div>
-            <div className="filter-field" style={{ display: "flex", flexDirection: "column", gap: 9, flex: 1, minWidth: 190, maxWidth: 320 }}>
-              <strong style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: .5, color: "var(--ink-soft)" }}>Kabupaten/Kota</strong>
-              <FilterSelect
-                icon="place"
-                ariaLabel="Kabupaten/Kota"
-                value={selectedRegency}
-                onChange={setSelectedRegency}
-                options={[{ value: "all", label: "Semua wilayah", short: "Semua" }, ...regencies.map((regency) => ({ value: regency, label: regency, short: regency.replace(/^(Kabupaten|Kota)\s+/, "") }))]}
-              />
-            </div>
-            <div ref={layerMenuRef} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 9, flex: 1, minWidth: 190, maxWidth: 320 }}>
-              <strong style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: .5, color: "var(--ink-soft)" }}>Pilihan Layer</strong>
-              <button
-                type="button"
-                onClick={() => setLayerMenuOpen((open) => !open)}
-                aria-expanded={layerMenuOpen}
-                aria-haspopup="true"
-                className="layer-menu-btn"
-                style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44, padding: "0 14px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", cursor: "pointer", fontSize: 14, fontWeight: 500, width: "100%", textAlign: "left" }}
-              >
-                <Icon name="layers" style={{ fontSize: 18, color: "var(--accent)" }} />
-                <span style={{ flex: 1, minWidth: 0 }}>{Object.values(activeLayers).filter(Boolean).length} dari 6<span className="layer-btn-suffix"> layer aktif</span></span>
-                <Icon name="expand_more" style={{ fontSize: 18, color: "var(--ink-soft)", transform: layerMenuOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+          <div id="map-filters" className={`map-filter-bar${mobileFilterOpen ? " is-open" : ""}`}>
+            <div className="map-filter-field"><span>Tanggal prediksi</span><FilterSelect icon="schedule" ariaLabel="Horizon prediksi" value={selectedDate} onChange={setSelectedDate}
+              options={[{ value: "all", label: "Terbaru" }, ...HORIZON_OPTIONS.map((horizon) => ({ value: dateFromOffset(horizon.offset), label: horizon.label }))]} /></div>
+            <div className="map-filter-field"><span>Kabupaten/kota</span><FilterSelect icon="place" ariaLabel="Kabupaten/Kota" value={selectedRegency} onChange={setSelectedRegency}
+              options={[{ value: "all", label: "Semua wilayah" }, ...regencies.map((regency) => ({ value: regency, label: regency, short: regency.replace(/^(Kabupaten|Kota)\s+/, "") }))]} /></div>
+            <div className="map-filter-field" ref={layerMenuRef}>
+              <span>Lapisan peta</span>
+              <button type="button" className="layer-menu-btn" aria-label="Pilihan layer" aria-expanded={layerMenuOpen} aria-controls="map-layer-options" onClick={() => setLayerMenuOpen((open) => !open)}>
+                <Icon name="layers" /><span>{activeLayerCount} dari 6 aktif</span><Icon name={layerMenuOpen ? "expand_less" : "expand_more"} />
               </button>
-              {layerMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: .15 }}
-                  className="layer-dropdown"
-                  style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, zIndex: 20, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 12px 32px rgba(15, 23, 42, .16)", padding: 6, display: "grid", gridTemplateColumns: "1fr", gap: 1 }}
-                >
-                  {Object.entries({
-                    bahaya_rob: "Bahaya Rob",
-                    laporan: "Laporan Warga",
-                    pasang_surut: "Pasang Surut",
-                    garis_pantai: "Garis Pantai",
-                    infrastruktur_kritis: "Infrastruktur",
-                    evakuasi: "Jalur Evakuasi"
-                  }).map(([key, label]) => (
-                    <label key={key} className="layer-option" style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer", fontSize: 13, textTransform: "none", letterSpacing: "normal", minWidth: "auto", fontWeight: 500, color: "var(--ink)", margin: 0, padding: "8px 10px", borderRadius: 8 }}>
-                      <input
-                        type="checkbox"
-                        style={{ width: 15, height: 15, cursor: "pointer", flexShrink: 0, accentColor: "var(--accent)" }}
-                        checked={activeLayers[key as LayerKey]}
-                        onChange={(e) => setActiveLayers(prev => ({ ...prev, [key]: e.target.checked }))}
-                      />
-                      <span style={{ lineHeight: 1.2, whiteSpace: "nowrap" }}>{label}</span>
-                    </label>
-                  ))}
-                </motion.div>
-              )}
+              {layerMenuOpen && <motion.div className="layer-dropdown" id="map-layer-options" role="group" aria-label="Lapisan peta" initial={reducedMotion ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.15 }}>
+                {Object.entries({ bahaya_rob: "Bahaya Rob", laporan: "Laporan Warga", pasang_surut: "Pasang Surut", garis_pantai: "Garis Pantai", infrastruktur_kritis: "Infrastruktur", evakuasi: "Jalur Evakuasi" }).map(([key, label]) => (
+                  <label key={key} className="layer-option"><input type="checkbox" checked={activeLayers[key as LayerKey]} onChange={(event) => setActiveLayers((previous) => ({ ...previous, [key]: event.target.checked }))} /><span>{label}</span></label>
+                ))}
+              </motion.div>}
             </div>
           </div>
-          <div className="map-viewport">
-            <div className="map-toolbar">
-              <span>Pesisir Lampung</span>
-              <strong>{toolbarHorizon}</strong>
-            </div>
-            <div className="map-container" style={{ minHeight: 560 }}>
-              <RiskMap regions={regions} reports={reports} layers={layers} activeLayers={activeLayers} selectedRegency={selectedRegency} userLocation={userLocation} onSelectFeature={handleSelectFeature} />
-            </div>
-            <div className="legend">
-              <strong>Legenda risiko</strong>
-              {Object.entries(riskLabels).map(([risk, label]) => <span key={risk}><i className={`dot ${riskDotClass[risk]}`} />{label}</span>)}
-            </div>
-            {loading && <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "var(--scrim)", color: "var(--ink)", fontWeight: 700 }}>Memuat peta.</div>}
-          </div>
+          <button type="button" className="map-action map-locate" onClick={detectLocation} disabled={locating || loading} aria-label="Deteksi lokasi saya"><Icon name="my_location" />{locating ? "Mendeteksi…" : "Lokasi saya"}</button>
+        </section>
+
+        <div className="map-overview">
+          <dl className="map-stats-grid">
+            {[[regions.features.length, "wilayah terpantau"], [highRiskCount, "risiko tinggi+"], [reports.features.length, "laporan valid"]].map(([value, label]) => (
+              <div key={String(label)} title={label === "laporan valid" ? "Maksimal 100 laporan tervalidasi terbaru; tidak dibatasi tanggal prediksi." : undefined}>
+                <dt>{label}</dt><dd>{loading ? <Skeleton width={26} height={18} /> : error ? "—" : numberFormatter.format(Number(value))}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className={`map-overall-status${!loading && !error ? elevatedRisk || overallRisk === "sedang" ? " elevated" : overallRisk === "rendah" ? " calm" : "" : ""}`} role="status"><Icon name={loading ? "hourglass_empty" : error || !highestRisk ? "info" : elevatedRisk ? "warning" : overallRisk === "rendah" ? "check_circle" : "info"} /><span>{riskStatus}</span></div>
         </div>
-        <aside className="stack" style={{ gap: 14 }}>
-          <motion.div variants={itemVariants} className="panel flush">
-            <div className="map-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", background: "var(--surface)" }}>{[[regions.features.length, "Zona tanggal ini", "var(--ink)"], [reports.features.length, "Laporan valid (100 terbaru)", "var(--low)"], [regions.features.filter((item) => ["tinggi", "sangat_tinggi"].includes(String(item.properties.risk_class))).length, "Risiko tinggi+", "var(--critical)"]].map(([value, label, color]) => <div key={String(label)} style={{ padding: "16px 8px", textAlign: "center" }}><strong style={{ display: "block", fontSize: 21, color: String(color) }}>{value}</strong><span style={{ fontSize: 11, color: "var(--ink-soft)" }}>{label}</span></div>)}</div>
-          </motion.div>
-          {activeWarning && <motion.div variants={itemVariants} className="panel" style={{ padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <Icon name="campaign" style={{ color: "var(--critical)" }} />
-              <strong style={{ fontSize: 13 }}>Peringatan Risiko</strong>
+
+        <div className="public-map-layout">
+          <section className="map-surface" aria-label="Peta wilayah pantauan">
+            <div className="map-viewport" aria-busy={loading}>
+              <div className="map-toolbar"><span>{selectedRegency === "all" ? "Pesisir Lampung" : selectedRegency}</span><strong>{selectedDate === "all" ? "Prediksi terbaru" : horizonLabel(selectedDate)}</strong></div>
+              {notices}
+              <div className="map-container"><RiskMap regions={regions} reports={reports} layers={layers} activeLayers={activeLayers} selectedRegency={selectedRegency} userLocation={userLocation} onSelectFeature={handleSelectFeature} /></div>
+              {loading && <div className="map-loading" role="status">Memuat peta…</div>}
             </div>
-            <p style={{ margin: 0, fontSize: 13 }}>{activeWarning.message}</p>
-          </motion.div>}
-          <div className="map-warnings-desktop">{warningPanels}</div>
-          <motion.div variants={itemVariants} className="panel flush">
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
-              <strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: .5, color: "var(--ink-soft)" }}>Wilayah terpilih</strong>
-              {selectedFeature ? <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, color: "var(--ink)" }}>{String(selectedFeature.properties.village ?? "Wilayah pesisir")}</div>
-                  <div style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 2 }}>{[selectedFeature.properties.district, selectedFeature.properties.regency].filter(Boolean).join(", ")}</div>
-                </div>
-                <span className="badge" style={{ flexShrink: 0, background: `${selectedColor}1a`, color: selectedColor, borderColor: `${selectedColor}33` }}>{riskText(selectedRiskClass)}</span>
-              </div> : <p style={{ margin: "10px 0 0", fontSize: 13 }}>Klik salah satu titik di peta untuk melihat detail wilayah.</p>}
-            </div>
-            {selectedFeature && <div style={{ padding: "16px 20px", display: "grid", gap: 12 }}>
-              <div className="info-item"><Icon name="insights" /><div><strong>Probabilitas</strong><p>{Math.round(Number(selectedFeature.properties.risk_probability ?? 0))}%</p></div></div>
-              <div className="info-item"><Icon name="groups" /><div><strong>Populasi risiko</strong><p>{typeof selectedPopulation === "number" && selectedPopulation > 0 ? `${numberFormatter.format(selectedPopulation)} jiwa` : "Data belum tersedia"}</p></div></div>
-              <button type="button" className="btn secondary" onClick={detectLocation} disabled={locating} data-loading={locating || undefined} style={{ justifyContent: "center" }}>
-                <Icon name="my_location" /> {locating ? "Mendeteksi lokasi…" : "Deteksi lokasi saya"}
-              </button>
-              {locError && <p style={{ margin: "-4px 0 0", fontSize: 12, color: "var(--critical)" }}>{locError}</p>}
-              {/* Terbuka untuk semua pengguna login (pelaporan darurat). Tamu yang
-                  menekan ini akan diarahkan login dulu oleh guard route #/reports. */}
-              <a className="btn primary" href="#/reports" style={{ justifyContent: "center" }}><Icon name="add_location_alt" /> Lapor Kejadian di Sini</a>
-            </div>}
-          </motion.div>
-        </aside>
-      </motion.div>
-    </motion.div>
-  </AppShell>;
+            <div className="map-legend"><span>Risiko rob</span>{Object.entries(riskLabels).map(([risk, label]) => <span key={risk}><i className={`dot ${riskDotClass[risk]}`} />{label}</span>)}</div>
+          </section>
+          {!compact && <aside className="map-region-panel" aria-label="Detail wilayah terpilih">{details}</aside>}
+        </div>
+
+        {compact && <button type="button" className="map-region-launcher" onClick={() => setDetailOpen(true)} aria-haspopup="dialog" disabled={loading}>
+          <Icon name="place" /><span><small>Detail wilayah</small><strong>{loading ? "Memuat wilayah…" : selectedFeature ? String(selectedFeature.properties.village ?? "Wilayah pesisir") : "Pilih wilayah di peta"}</strong></span><Icon name="expand_less" />
+        </button>}
+      </div>
+      {compact && createPortal(<AnimatePresence>{detailOpen && <MapRegionSheet onClose={closeDetails}>{details}</MapRegionSheet>}</AnimatePresence>, document.body)}
+    </AppShell>
+  );
 }
