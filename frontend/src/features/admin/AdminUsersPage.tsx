@@ -5,6 +5,7 @@ import { useToast } from "../../shared/components/Toast";
 import { Icon } from "../../shared/components/Icon";
 import { LoadingBlock } from "../../shared/components/LoadingBlock";
 import { EmptyState } from "../../shared/components/EmptyState";
+import { Skeleton } from "../../shared/components/Skeleton";
 import { RowActionsMenu, type RowAction } from "../../shared/components/RowActionsMenu";
 import { ConfirmDialog, type ConfirmState } from "./components/ConfirmDialog";
 import { CreateUserModal } from "./components/CreateUserModal";
@@ -12,8 +13,10 @@ import { EditUserModal } from "./components/EditUserModal";
 import { ReviewUserModal } from "./components/ReviewUserModal";
 import { roleLabel } from "../../shared/constants/roles";
 import { userStatusLabel, userStatusOptions } from "../../shared/constants/userStatus";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
 import type { UserData, UserMeta, UserSummary, UserListResponse } from "./types";
+import "../dashboards/dashboardKit.css";
+import "./adminScreens.css";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -27,6 +30,8 @@ const itemVariants: Variants = {
 
 export function AdminUsersPage() {
   const toast = useToast();
+  const reducedMotion = useReducedMotion();
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [users, setUsers] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +71,7 @@ export function AdminUsersPage() {
         setUsers(res.data);
         setMeta(res.meta ?? null);
         setSummary(res.summary ?? null);
+        setLastUpdated(new Date());
       })
       .catch((err: unknown) => {
         if (seq !== fetchSeqRef.current) return;
@@ -203,7 +209,14 @@ export function AdminUsersPage() {
   const showPendingQueue = () => {
     setRole("");
     setStatus("menunggu");
+    setSearch("");
+    setAppliedSearch("");
     setPage(1);
+  };
+
+  const hasFilters = Boolean(role || status || search);
+  const resetFilters = () => {
+    setRole(""); setStatus(""); setSearch(""); setAppliedSearch(""); setPage(1);
   };
 
   const closedCount = (summary?.nonaktif ?? 0) + (summary?.ditolak ?? 0);
@@ -219,11 +232,6 @@ export function AdminUsersPage() {
   return (
     <AppShell active="admin" title="Manajemen Pengguna & Perizinan">
       <style>{`
-        .admin-pagination { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: space-between; padding: 16px 24px; flex-wrap: wrap; }
-        .admin-page-btn { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); cursor: pointer; display: inline-flex; height: 36px; justify-content: center; min-width: 36px; padding: 0 10px; }
-        .admin-page-btn:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--accent); }
-        .admin-page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 800; }
-        .admin-page-btn:disabled { cursor: not-allowed; opacity: .45; }
         .admin-confirm-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
         .admin-confirm-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25); max-width: 440px; padding: 26px; width: 100%; animation: adminConfirmIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes adminConfirmIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -266,95 +274,51 @@ export function AdminUsersPage() {
         .admin-role-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
         .admin-create-footer { align-items: center; background: var(--surface); border-top: 1px solid var(--line); display: flex; gap: 14px; justify-content: space-between; padding: 16px 22px; flex-wrap: wrap; }
         .review-label { color: var(--ink-soft); font-size: 11.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
-        .users-org-cell {
-          max-width: 220px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          width: 220px;
-        }
         .admin-create-hint { align-items: flex-start; color: var(--ink-soft); display: flex; font-size: 12.5px; gap: 8px; line-height: 1.5; max-width: 480px; }
         .admin-create-hint .material-symbols-outlined, .admin-create-hint .material-symbols-rounded { color: var(--accent); font-size: 17px; }
         @media (max-width: 640px) { .admin-create-grid { grid-template-columns: 1fr; } }
 
-        @media (max-width: 768px) {
-          .metric-grid.admin-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
-          .metric-grid.admin-kpis .metric-card { padding: 18px !important; }
-          .metric-grid.admin-kpis .metric-card span { font-size: 12px !important; }
-          .metric-grid.admin-kpis .metric-card strong { font-size: 28px !important; }
-          .metric-grid.admin-kpis .metric-card small { font-size: 11px !important; }
-        }
-
-        .users-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .users-filter { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-        .users-filter select { height: 42px; border-radius: 10px; border: 1px solid var(--line); background-color: var(--surface); color: var(--ink); font: inherit; font-size: 13px; min-width: 160px; padding: 0 34px 0 12px; box-sizing: border-box; cursor: pointer; }
-        .users-search { position: relative; flex: 1; min-width: 200px; }
-        .users-search input { height: 42px; width: 100%; border-radius: 10px; border: 1px solid var(--line); background-color: var(--surface); color: var(--ink); font: inherit; font-size: 13px; padding: 0 12px 0 38px; box-sizing: border-box; }
-        .users-filter select:focus, .users-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
-
-        @media (max-width: 640px) {
-          .users-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-          .users-actions .btn { width: 100%; justify-content: center; padding: 10px 8px; font-size: 12.5px; }
-          .users-filter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-          .users-filter select { min-width: 0; width: 100%; }
-          .users-search { grid-column: 1 / -1; min-width: 0; }
-        }
       `}</style>
-      <motion.div variants={containerVariants} initial="hidden" animate="show" className="content" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      <motion.div variants={containerVariants} initial={reducedMotion ? false : "hidden"} animate="show" className="content admin-screen">
+        <div className="dash-head">
+          <div>
+            <h1>Pengguna &amp; Perizinan</h1>
+            <p>Kelola akun, peran, dan permohonan akses penelitian dalam satu tempat.</p>
+          </div>
+          <button type="button" className="dash-refresh" disabled={isLoading} onClick={() => void fetchUsers()} title="Muat ulang daftar pengguna">
+            <Icon name="refresh" />{isLoading ? "Memuat data…" : lastUpdated ? `Diperbarui ${lastUpdated.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}` : "Muat ulang data"}
+          </button>
+        </div>
 
         <motion.section
           variants={itemVariants}
-          className="panel"
-          style={{ marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap", borderLeft: pendingCount > 0 ? "3px solid var(--medium)" : undefined }}
+          className={`dash-status ${pendingCount > 0 ? "busy" : "calm"}`}
+          aria-label="Status perizinan akun"
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 8, background: pendingCount > 0 ? "var(--medium-soft, #fef3c7)" : "var(--ocean-light, #e0f2fe)", color: pendingCount > 0 ? "var(--medium)" : "var(--ocean-dark, #0284c7)", display: "grid", placeItems: "center" }}>
-              <Icon name={pendingCount > 0 ? "how_to_reg" : "verified_user"} />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: "1rem" }}>Perizinan akun</h2>
-              <p style={{ margin: "4px 0 0", fontSize: 13 }}>
-                {pendingCount > 0 ? (
-                  <>
-                    <strong>{pendingCount}</strong> akun menunggu keputusan
-                    {penelitiPending > 0 && <> — <strong>{penelitiPending}</strong> di antaranya permohonan peneliti dengan alasan tertulis</>}.
-                  </>
-                ) : (
-                  "Tidak ada permohonan yang menunggu. Akses data peneliti diberikan di sini, sekali saat akunnya disetujui."
-                )}
-              </p>
-            </div>
+          <span className="dash-status-icon"><Icon name={pendingCount > 0 ? "how_to_reg" : "verified_user"} /></span>
+          <div className="dash-status-text">
+            <strong>{isLoading && !lastUpdated ? "Memuat status perizinan…" : pendingCount > 0 ? `${pendingCount.toLocaleString("id-ID")} akun menunggu persetujuan` : "Tidak ada permohonan yang menunggu"}</strong>
+            <span>{penelitiPending > 0 ? `${penelitiPending.toLocaleString("id-ID")} permohonan peneliti perlu ditinjau alasan dan instansinya.` : "Akses penelitian diberikan setelah permohonan akun disetujui admin."}</span>
           </div>
           {pendingCount > 0 && (
-            <button type="button" className="btn secondary" onClick={showPendingQueue} style={{ position: "relative" }}>
+            <button type="button" className="dash-status-btn" onClick={showPendingQueue}>
               <Icon name="fact_check" /> Tinjau permohonan
-              <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: "var(--critical)", color: "#fff", fontSize: 11, fontWeight: 800, display: "grid", placeItems: "center" }}>{pendingCount}</span>
             </button>
           )}
         </motion.section>
 
-        <motion.div variants={itemVariants} className="metric-grid admin-kpis" style={{ marginBottom: 32 }}>
+        <motion.div variants={itemVariants} className="dash-kpis">
           {[
-            { title: "Pengguna Aktif", val: activeCount, sub: "Dapat masuk ke dashboard", cls: "success" },
-            { title: "Menunggu Approval", val: pendingCount, sub: "Butuh validasi admin", cls: pendingCount > 0 ? "medium" : "" },
-            { title: "Akses Ditutup", val: closedCount, sub: "Nonaktif & ditolak", cls: "" },
-            { title: "Total Terdaftar", val: totalCount, sub: "Seluruh role pengguna", cls: "" }
-          ].map((kpi, idx) => (
-            <motion.div
-              key={idx}
-              whileHover={{ y: -6, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
-              className={`metric-card ${kpi.cls}`}
-            >
-              <span>{kpi.title}</span>
-              <motion.strong
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 + (idx * 0.1), type: "spring", stiffness: 200 }}
-              >
-                {kpi.val}
-              </motion.strong>
-              <small>{kpi.sub}</small>
-            </motion.div>
+            { title: "Pengguna aktif", val: activeCount, sub: "akun berstatus aktif", icon: "verified_user", color: "var(--low)", alert: false },
+            { title: "Menunggu persetujuan", val: pendingCount, sub: "perlu keputusan admin", icon: "pending_actions", color: "var(--amber)", alert: pendingCount > 0 },
+            { title: "Akses ditutup", val: closedCount, sub: "akun nonaktif dan ditolak", icon: "person_off", color: "var(--ink-soft)", alert: false },
+            { title: "Total pengguna", val: totalCount, sub: "seluruh peran terdaftar", icon: "groups", color: "var(--ocean-dark)", alert: false }
+          ].map((kpi) => (
+            <div key={kpi.title} className="dash-kpi" style={{ ["--kpi-color" as string]: kpi.color }}>
+              <div className="dash-kpi-top"><span className="dash-kpi-label">{kpi.title}</span><span className="dash-kpi-icon"><Icon name={kpi.icon} /></span></div>
+              {isLoading && !lastUpdated ? <Skeleton width={70} height={34} borderRadius={6} /> : <strong className={`dash-kpi-value${kpi.alert ? " is-alert" : ""}`}>{kpi.val.toLocaleString("id-ID")}</strong>}
+              <span className="dash-kpi-sub">{kpi.sub}</span>
+            </div>
           ))}
         </motion.div>
 
@@ -380,53 +344,55 @@ export function AdminUsersPage() {
           isActing={isActing}
         />
 
-        <motion.div variants={itemVariants} className="panel flush" style={{ overflow: "hidden", marginBottom: 32 }}>
-          <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-            <h2 style={{ margin: 0, fontSize: "1.2rem" }}>Daftar Pengguna Sistem</h2>
-            <div className="users-actions">
-              <button type="button" className="btn secondary" onClick={handleExportUsers}><Icon name="download" /> Export Pengguna</button>
-              <button type="button" className="btn primary" onClick={() => setCreateOpen((value) => !value)}><Icon name="person_add" /> {isCreateOpen ? "Tutup Form" : "Tambah Pengguna"}</button>
+        <div className="admin-toolbar" role="search" aria-label="Filter pengguna">
+          <div className="admin-filter-field admin-filter-search">
+            <label htmlFor="users-search">Cari pengguna</label>
+            <div className="admin-search-input">
+              <Icon name="search" />
+              <input id="users-search" type="text" placeholder="Nama atau email…" maxLength={100} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
-
-          <div className="users-filter" style={{ padding: "16px 24px", background: "var(--surface-soft)", borderBottom: "1px solid var(--line)" }}>
+          <div className="admin-filter-field">
+            <label htmlFor="users-role">Peran pengguna</label>
             <select
+              id="users-role"
               value={role}
               onChange={(e) => onFilterChange(setRole)(e.target.value)}
-              aria-label="Filter role"
             >
-              <option value="">Semua Role</option>
+              <option value="">Semua peran</option>
               <option value="admin">Admin</option>
               <option value="peneliti">Peneliti</option>
               <option value="warga">Warga</option>
             </select>
-
+          </div>
+          <div className="admin-filter-field">
+            <label htmlFor="users-status">Status akun</label>
             <select
+              id="users-status"
               value={status}
               onChange={(e) => onFilterChange(setStatus)(e.target.value)}
-              aria-label="Filter status"
             >
-              <option value="">Semua Status</option>
+              <option value="">Semua status</option>
               {userStatusOptions.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+          </div>
+          {hasFilters && <button type="button" className="admin-reset" onClick={resetFilters}><Icon name="restart_alt" /> Atur ulang</button>}
+        </div>
 
-            <div className="users-search">
-              <Icon name="search" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--ink-soft)", fontSize: 18 }} />
-              <input
-                type="text"
-                placeholder="Cari nama, email..."
-                maxLength={100}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+        <motion.section variants={itemVariants} className="panel flush admin-data-panel" aria-labelledby="users-title" aria-busy={isLoading}>
+          <div className="admin-section-head">
+            <div><h2 id="users-title">Daftar pengguna</h2><p>{isLoading ? "Memuat daftar pengguna…" : `${(meta?.total ?? users.length).toLocaleString("id-ID")} pengguna${hasFilters ? " sesuai filter" : " terdaftar"}`}</p></div>
+            <div className="admin-panel-actions">
+              <button type="button" className="admin-action" onClick={handleExportUsers}><Icon name="download" /> Ekspor CSV</button>
+              <button type="button" className="admin-action primary" onClick={() => setCreateOpen(true)}><Icon name="person_add" /> Tambah pengguna</button>
             </div>
           </div>
 
           <div>
             {isLoading ? (
-              <div style={{ padding: "16px 24px" }}><LoadingBlock rows={6} label="Memuat daftar pengguna\u2026" /></div>
+              <div style={{ padding: "16px 24px" }}><LoadingBlock rows={6} label="Memuat daftar pengguna…" /></div>
             ) : error ? (
               <div style={{ padding: "56px 20px", textAlign: "center", color: "var(--ink-soft)", display: "grid", justifyItems: "center", gap: 4 }}>
                 <Icon name="error" style={{ fontSize: 48, color: "var(--critical)", opacity: 0.85, marginBottom: 8 }} />
@@ -441,16 +407,12 @@ export function AdminUsersPage() {
                 description="Tidak ada pengguna yang cocok dengan filter pencarian Anda."
               />
             ) : (
-            <div className="table-responsive">
-              <table className="data-table" style={{ width: "100%", minWidth: 900, textAlign: "left", borderCollapse: "collapse" }}>
+            <div>
+              <table className="data-table admin-data-table users-table" aria-label="Daftar pengguna sistem">
+                <colgroup><col style={{ width: "34%" }} /><col style={{ width: "15%" }} /><col style={{ width: "17%" }} /><col style={{ width: "26%" }} /><col style={{ width: "8%" }} /></colgroup>
                 <thead>
-                  <tr style={{ background: "var(--surface-soft)", borderBottom: "1px solid var(--line)" }}>
-                    <th style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13, fontWeight: 600 }}>Nama Lengkap</th>
-                    <th style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13, fontWeight: 600 }}>Email</th>
-                    <th style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13, fontWeight: 600 }}>Role</th>
-                    <th style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13, fontWeight: 600 }}>Status</th>
-                    <th style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13, fontWeight: 600 }}>Instansi / Wilayah</th>
-                    <th style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13, fontWeight: 600, textAlign: "right" }}>Aksi</th>
+                  <tr>
+                    <th scope="col">Pengguna</th><th scope="col">Peran</th><th scope="col">Status akun</th><th scope="col">Instansi / wilayah</th><th scope="col" className="admin-table-end">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -459,34 +421,31 @@ export function AdminUsersPage() {
                       return (
                       <motion.tr
                         key={user.id}
-                        initial={{ opacity: 0 }}
+                        initial={reducedMotion ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.1 + (idx * 0.05) }}
-                        style={{ borderBottom: "1px solid var(--line)" }}
+                        transition={{ delay: reducedMotion ? 0 : Math.min(idx * 0.025, .2) }}
                       >
-                        <td style={{ padding: "16px 24px", fontWeight: 600, color: "var(--ink)", fontSize: 14 }}>{user.name}</td>
-                        <td style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13 }}>{user.email}</td>
-                        <td style={{ padding: "16px 24px" }}>
-                          <span className="badge" style={{ background: "var(--accent-soft)", color: "var(--accent)", fontSize: 11, padding: "4px 8px" }}>
+                        <td className="admin-user-identity">
+                          <div className="admin-user-name">{user.name}</div><div className="admin-cell-sub">{user.email}</div>
+                        </td>
+                        <td data-label="Peran">
+                          <span className="admin-role-badge">
                             {roleLabel(user.role)}
                           </span>
                         </td>
-                        <td style={{ padding: "16px 24px" }}>
-                          <span className={`badge ${
-                            user.status === "aktif" ? "status-divalidasi" :
-                            user.status === "menunggu" ? "status-menunggu" : ""
-                          }`} style={{ fontSize: 11, padding: "4px 8px", background: user.status === "nonaktif" || user.status === "ditolak" ? "var(--surface-muted)" : undefined }}>
+                        <td data-label="Status akun">
+                          <span className={`admin-status-badge status-${user.status}`}><i />
                             {userStatusLabel(user.status)}
                           </span>
                         </td>
                         <td
-                          className="users-org-cell"
-                          style={{ padding: "16px 24px", color: "var(--ink-soft)", fontSize: 13 }}
+                          className="admin-user-org"
+                          data-label="Instansi / wilayah"
                           title={user.institution || user.region_name || undefined}
                         >
                           {user.institution || user.region_name || "-"}
                         </td>
-                        <td style={{ padding: "16px 24px", textAlign: "right", whiteSpace: "nowrap" }}>
+                        <td className="admin-table-end admin-user-actions">
                           <RowActionsMenu
                             label={`Aksi untuk ${user.name}`}
                             disabled={isActing}
@@ -502,10 +461,10 @@ export function AdminUsersPage() {
             )}
           </div>
 
-          {!isLoading && !error && meta && meta.last_page > 1 && (
+          {!isLoading && !error && meta && (
             <nav className="admin-pagination" aria-label="Navigasi halaman pengguna">
               <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>
-                Menampilkan {meta.from ?? 0}\u2013{meta.to ?? 0} dari {meta.total} pengguna
+                Menampilkan {meta.from ?? 0}–{meta.to ?? 0} dari {meta.total} pengguna
               </span>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <button type="button" className="admin-page-btn" disabled={page <= 1} onClick={() => changePage(page - 1)} aria-label="Halaman sebelumnya">
@@ -513,7 +472,7 @@ export function AdminUsersPage() {
                 </button>
                 {pageNumbers.map((n, i) => (
                   <span key={n} style={{ display: "contents" }}>
-                    {i > 0 && n - pageNumbers[i - 1] > 1 && <span style={{ alignSelf: "center", padding: "0 3px" }}>\u2026</span>}
+                    {i > 0 && n - pageNumbers[i - 1] > 1 && <span style={{ alignSelf: "center", padding: "0 3px" }}>…</span>}
                     <button type="button" className={`admin-page-btn ${n === meta.current_page ? "active" : ""}`} onClick={() => changePage(n)} aria-current={n === meta.current_page ? "page" : undefined}>{n}</button>
                   </span>
                 ))}
@@ -523,7 +482,7 @@ export function AdminUsersPage() {
               </div>
             </nav>
           )}
-        </motion.div>
+        </motion.section>
 
         {confirm && (
           <ConfirmDialog
