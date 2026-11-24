@@ -57,7 +57,7 @@ export function LandingFooter({ accessHref, accessLabel }: LandingFooterProps) {
 
           <nav className="lf-col" aria-label="Tautan">
             <h3>Tautan</h3>
-            <a href="#/">Beranda</a>
+            <a href="#/" onClick={scrollToTop}>Beranda</a>
             <a href="#/map">Peta Risiko</a>
             <a href="#/awam">Mode Awam</a>
             <a href="#panduan" onClick={scrollToLandingGuide}>Panduan</a>
